@@ -19,13 +19,21 @@ class PreMap:
         self.origin = None
         self.resolution = None
 
+        self.cline = None
+        self.nvecs = None
+        self.widths = None
+
     def run_conversion(self):
         self.read_yaml_file()
         self.load_map()
 
         self.dt = ndimage.distance_transform_edt(self.map_img) * self.resolution
 
-        self.find_centerline()
+        self.find_centerline(False)
+        self.find_nvecs()
+        self.set_true_widths()
+
+        self.render_map()
         
     def read_yaml_file(self):
         file_name = 'maps/' + self.map_name + '.yaml'
@@ -70,6 +78,7 @@ class PreMap:
         self.height = self.map_img.shape[1]
         self.width = self.map_img.shape[0]
 
+#TODO: flip the pgm files that are read top to bottom
     def read_p2(self, pgm_name):
         print(f"Reading P2 maps")
         with open(pgm_name, 'r') as f:
@@ -165,7 +174,8 @@ class PreMap:
         self.cline = np.array(self.cline)
         self.N = len(self.cline)
         print(f"Raceline found")
-        self.plot_raceline_finding(True)
+        if show:
+            self.plot_raceline_finding(True)
 
     def plot_raceline_finding(self, wait=False):
         plt.figure(1)
@@ -192,9 +202,106 @@ class PreMap:
 
         return c, r
 
+    def convert_positions(self, pts):
+        xs, ys = [], []
+        for pt in pts:
+            x, y = self.xy_to_row_column(pt)
+            xs.append(x)
+            ys.append(y)
 
-        
+        return xs, ys
 
+    def find_nvecs(self):
+        N = self.N
+        track = self.cline
+
+        nvecs = []
+        # new_track.append(track[0, :])
+        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[0, :], track[1, :]))
+        nvecs.append(nvec)
+        for i in range(1, len(track)-1):
+            pt1 = track[i-1]
+            pt2 = track[min((i, N)), :]
+            pt3 = track[min((i+1, N-1)), :]
+
+            th1 = lib.get_bearing(pt1, pt2)
+            th2 = lib.get_bearing(pt2, pt3)
+            if th1 == th2:
+                th = th1
+            else:
+                dth = lib.sub_angles_complex(th1, th2) / 2
+                th = lib.add_angles_complex(th2, dth)
+
+            new_th = th + np.pi/2
+            nvec = lib.theta_to_xy(new_th)
+            nvecs.append(nvec)
+
+        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[-2, :], track[-1, :]))
+        nvecs.append(nvec)
+
+        self.nvecs = np.array(nvecs)
+
+    def set_true_widths(self):
+        nvecs = self.nvecs
+        tx = self.cline[:, 0]
+        ty = self.cline[:, 1]
+
+        stp_sze = 0.1
+        sf = 0.5 # safety factor
+        nws, pws = [], []
+        for i in range(self.N):
+            pt = [tx[i], ty[i]]
+            nvec = nvecs[i]
+
+            j = stp_sze
+            s_pt = s_pt = lib.add_locations(pt, nvec, j)
+            while not self.check_scan_location(s_pt):
+                j += stp_sze
+                s_pt = lib.add_locations(pt, nvec, j)
+            pws.append(j*sf)
+
+            j = stp_sze
+            s_pt = s_pt = lib.sub_locations(pt, nvec, j)
+            while not self.check_scan_location(s_pt):
+                j += stp_sze
+                s_pt = lib.sub_locations(pt, nvec, j)
+            nws.append(j*sf)
+
+        nws, pws = np.array(nws), np.array(pws)
+
+        self.widths =  np.concatenate([nws[:, None], pws[:, None]], axis=-1)     
+
+    def render_map(self):
+        plt.figure(2)
+        plt.clf()
+        plt.imshow(self.map_img, origin='lower')
+
+        xs, ys = [], []
+        for pt in self.cline:
+            s_x, s_y = self.xy_to_row_column(pt)
+            xs.append(s_x)
+            ys.append(s_y)
+        plt.plot(xs, ys, linewidth=2)
+
+        ns = self.nvecs 
+        ws = self.widths
+        l_line = self.cline - np.array([ns[:, 0] * ws[:, 0], ns[:, 1] * ws[:, 0]]).T
+        r_line = self.cline + np.array([ns[:, 0] * ws[:, 1], ns[:, 1] * ws[:, 1]]).T
+
+        cx, cy = self.convert_positions(self.cline)
+        plt.plot(cx, cy, linewidth=2)
+        lx, ly = self.convert_positions(l_line)
+        plt.plot(lx, ly, linewidth=1)
+        rx, ry = self.convert_positions(r_line)
+        plt.plot(rx, ry, linewidth=1)
+
+        plt.show()
+
+    def check_scan_location(self, pt):
+        c, r = self.xy_to_row_column(pt)
+        if self.map_img[c, r]:
+            return True
+        return False
 
 if __name__ == "__main__":
     fname = "config_example_map"
