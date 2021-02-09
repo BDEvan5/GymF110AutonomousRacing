@@ -1,6 +1,11 @@
 
 
 
-
+# map data
 map_name: "example_map"
 map_ext: ".png"
+
+# starting positions for vehicle
+sx: 0.0
+sy: 0.0
+stheta: 1.37079632679 
