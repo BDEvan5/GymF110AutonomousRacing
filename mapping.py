@@ -145,7 +145,7 @@ class PreMap:
         self.dt = ndimage.distance_transform_edt(self.map_img)
         dt = np.array(self.dt) 
 
-        d_search = 1 
+        d_search = 0.5 
         n_search = 11
         dth = (np.pi * 4/5) / (n_search-1)
 
@@ -342,7 +342,8 @@ class PreMap:
         deviation = np.array([self.nvecs[:, 0] * n_set[:, 0], self.nvecs[:, 1] * n_set[:, 0]]).T
         self.wpts = self.cline + deviation
 
-        self.vs = Max_velocity(self.wpts, self.conf)
+        self.vs = Max_velocity(self.wpts, self.conf, False)
+        # self.vs = Max_velocity(self.wpts, self.conf, True)
 
     def save_map_opti(self):
         filename = 'maps/' + self.map_name + '_opti.csv'
@@ -351,7 +352,7 @@ class PreMap:
         ss = np.cumsum(dss)
         ks = np.zeros_like(ths[:, None]) #TODO: add the curvature
 
-        track = np.concatenate([dss[:, None], self.wpts[:-1], ths[:, None], ks, self.vs], axis=-1)
+        track = np.concatenate([ss[:, None], self.wpts[:-1], ths[:, None], ks, self.vs], axis=-1)
 
         with open(filename, 'w') as csvfile:
             csvwriter = csv.writer(csvfile)

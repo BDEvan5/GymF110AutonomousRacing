@@ -13,13 +13,13 @@ stheta: 1.37079632679
 mu: 0.523
 m: 3.47
 g: 9.81
-l_r: 0.17
+l_r: 0.171
 l_f: 0.158
-force_f: 
+force_f: 0.9
 max_v: 7
 max_a: 8.5
 
-lookahead: 2
+lookahead: 0.82
 v_gain: 0.9
 force_f: 0.8
 
