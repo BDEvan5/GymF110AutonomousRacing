@@ -1,2 +1,6 @@
 
 __pycache__/
+
+.~lock.example_waypoints.csv#
+
+maps/.~lock.example_map_opti.csv#
