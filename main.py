@@ -16,7 +16,7 @@ def test_vehicle(conf, vehicle):
 
     while not done:
         action = vehicle.act(obs)
-        print(action)
+        # print(action)
         obs, step_reward, done, info = env.step(action)
         laptime += step_reward
         env.render(mode='human_fast')

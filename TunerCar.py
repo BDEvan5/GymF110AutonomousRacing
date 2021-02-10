@@ -34,7 +34,6 @@ class TunerCar:
             pre_map.run_conversion()
             self._load_csv_track()
 
-
     def _load_csv_track(self):
         # track_data = []
         # filename = 'maps/' + self.conf.map_name + '_opti.csv'
@@ -137,7 +136,7 @@ class TunerCar:
 
 
 
-# @njit(fastmath=False, cache=True)
+@njit(fastmath=False, cache=True)
 def first_point_on_trajectory_intersecting_circle(point, radius, trajectory, t=0.0, wrap=False):
     ''' starts at beginning of trajectory, and find the first point one radius away from the given point along the trajectory.
     Assumes that the first segment passes within a single radius of the point
@@ -218,5 +217,4 @@ def first_point_on_trajectory_intersecting_circle(point, radius, trajectory, t=0
 
     return first_p, first_i, first_t
 
-#     # print min_dist_segment, dists[min_dist_segment], projections[min_dist_segment]
 
