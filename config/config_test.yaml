@@ -16,10 +16,20 @@ g: 9.81
 l_r: 0.171
 l_f: 0.158
 force_f: 0.9
+
 max_v: 7
 max_a: 8.5
+max_steer: 0.4
+
+
 
 lookahead: 0.82
 v_gain: 0.9
 force_f: 0.8
 
+n_beams: 10
+h: 200
+
+r_dis_scale: 1
+
+plan_frequency: 10
