@@ -32,4 +32,7 @@ h: 200
 
 r_dis_scale: 1
 
-plan_frequency: 10
+plan_frequency: 1
+max_time: 1000
+
+

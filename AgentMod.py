@@ -1,3 +1,4 @@
+from sys import setrecursionlimit
 import numpy as np 
 from matplotlib import pyplot as plt
 
@@ -72,6 +73,7 @@ class BaseMod:
 
 
     def _get_current_waypoint(self, position):
+        # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)
         nearest_pt, nearest_dist, t, i = self.nearest_pt(position)
 
         if nearest_dist < self.lookahead:
@@ -79,9 +81,14 @@ class BaseMod:
             if i2 == None:
                 return None
             i = i2
-        # elif nearest_dist < 20:
-
-        return np.append(self.wpts[i], self.vs[i])
+            current_waypoint = np.empty((3, ))
+            # x, y
+            current_waypoint[0:2] = self.wpts[i2]
+            # speed
+            current_waypoint[2] = self.vs[i]
+            return current_waypoint
+        elif nearest_dist < 20:
+            return np.append(self.wpts[i], self.vs[i])
 
     def act_pp(self, obs):
         ego_idx = obs['ego_idx']
@@ -283,7 +290,8 @@ class ModVehicleTrain(BaseMod):
         self.critic_history.append(self.agent.get_critic_value(nn_obs, nn_action))
         self.state_action = [nn_obs, self.cur_nn_act]
 
-        steering_angle = self.modify_references(self.cur_nn_act, steer_ref)
+        # steering_angle = self.modify_references(self.cur_nn_act, steer_ref)
+        steering_angle = steer_ref
 
         self.steps += 1
 

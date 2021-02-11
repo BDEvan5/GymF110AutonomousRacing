@@ -144,19 +144,24 @@ class TimeReward:
 
         return s 
 
-    def __call__(self, s, a, s_p, r) -> float:
-        if r == -1:
-            return r
+    def __call__(self, s, a, s_p) -> float:
+        collision = s_p['collisions'][0]
+        if collision == 1:
+            return -1
         else:
             pos_t = np.array([s['poses_x'][0], s['poses_y'][0]])
             pos_tt = np.array([s_p['poses_x'][0], s_p['poses_y'][0]])
+
+
             s = self.find_s(pos_t)
             ss = self.find_s(pos_tt)
-            shaped_r = 0.2 * (s - ss) 
+            shaped_r = 0.5 * (ss - s) 
 
-            new_r = - self.mt
+            return shaped_r
 
-            return new_r + shaped_r
+            # new_r = - self.mt
+
+            # return new_r + shaped_r
 
 
 
