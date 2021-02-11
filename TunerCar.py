@@ -35,19 +35,19 @@ class TunerCar:
             self._load_csv_track()
 
     def _load_csv_track(self):
-        # track_data = []
-        # filename = 'maps/' + self.conf.map_name + '_opti.csv'
+        track_data = []
+        filename = 'maps/' + self.conf.map_name + '_opti.csv'
         
-        # with open(filename, 'r') as csvfile:
-        #     csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
+        with open(filename, 'r') as csvfile:
+            csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
     
-        #     for lines in csvFile:  
-        #         track_data.append(lines)
+            for lines in csvFile:  
+                track_data.append(lines)
 
-        # track = np.array(track_data)
-        # print(f"Track Loaded: {filename}")
+        track = np.array(track_data)
+        print(f"Track Loaded: {filename}")
 
-        track = np.loadtxt('example_waypoints.csv', delimiter=';', skiprows=3)
+        # track = np.loadtxt('example_waypoints.csv', delimiter=';', skiprows=3)
 
 
         self.N = len(track)

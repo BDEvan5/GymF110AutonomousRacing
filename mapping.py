@@ -142,8 +142,7 @@ class PreMap:
         self.map_img = np.array(raster)        
 
     def find_centerline(self, show=True):
-        self.dt = ndimage.distance_transform_edt(self.map_img)
-        dt = np.array(self.dt) 
+        dt = self.dt
 
         d_search = 0.5 
         n_search = 11
@@ -161,7 +160,7 @@ class PreMap:
         pt = start = np.array([self.conf.sx, self.conf.sy])
         self.cline = [pt]
         th = self.conf.stheta - np.pi/2
-        while lib.get_distance(pt, start) > d_search or len(self.cline) < 10 and len(self.cline) < 200:
+        while (lib.get_distance(pt, start) > d_search or len(self.cline) < 10) and len(self.cline) < 200:
             vals = []
             self.search_space = []
             for i in range(n_search):
@@ -190,6 +189,7 @@ class PreMap:
         print(f"Raceline found")
         if show:
             self.plot_raceline_finding(True)
+        self.plot_raceline_finding(True)
 
     def plot_raceline_finding(self, wait=False):
         plt.figure(1)
@@ -256,13 +256,13 @@ class PreMap:
         self.nvecs = np.array(nvecs)
 
     def set_true_widths(self):
-        # nvecs = self.nvecs
-        # tx = self.cline[:, 0]
-        # ty = self.cline[:, 1]
+        nvecs = self.nvecs
+        tx = self.cline[:, 0]
+        ty = self.cline[:, 1]
 
-        # stp_sze = 0.01
-        # sf = 0.5 # safety factor
-        # nws, pws = [], []
+        stp_sze = 0.01
+        sf = 0.9 # safety factor
+        nws, pws = [], []
         # for i in range(self.N):
         #     pt = [tx[i], ty[i]]
         #     nvec = nvecs[i]
@@ -281,10 +281,17 @@ class PreMap:
         #         s_pt = lib.sub_locations(pt, nvec, j)
         #     nws.append(j*sf)
 
-        # nws, pws = np.array(nws), np.array(pws)
+        for i in range(self.N):
+            pt = [tx[i], ty[i]]
+            c, r = self.xy_to_row_column(pt)
+            val = self.dt[r, c] * 0.9
+            nws.append(val)
+            pws.append(val)
 
-        nws = 1.5 * np.ones(len(self.nvecs))
-        pws = 1.5 * np.ones(len(self.nvecs))
+        nws, pws = np.array(nws), np.array(pws)
+
+        # nws = 1.5 * np.ones(len(self.nvecs))
+        # pws = 1.5 * np.ones(len(self.nvecs))
 
         self.widths =  np.concatenate([nws[:, None], pws[:, None]], axis=-1)     
 
@@ -321,7 +328,8 @@ class PreMap:
         c, r = self.xy_to_row_column(pt)
         if abs(c) > self.width -2 or abs(r) > self.height -2:
             return True
-        if self.dt[c, r] < 0.05:
+        val = self.dt[c, r]
+        if val < 0.05:
             return True
         return False
 
@@ -614,6 +622,7 @@ def convert_pts_s_th(pts):
 if __name__ == "__main__":
     fname = "config_example_map"
     fname = "config_test"
+    # fname = "vegas"
     conf = lib.load_config_namespace(fname)
 
     pre_map = PreMap(conf)

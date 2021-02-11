@@ -2,7 +2,10 @@
 
 
 # map data
-map_name: "example_map"
+# map_name: "example_map"
+# map_name: "vegas"
+# map_name: "stata_basement"
+map_name: "berlin"
 map_ext: ".png"
 
 # starting positions for vehicle
