@@ -131,8 +131,8 @@ def run_tuner_car():
     config_file = "config_test"
     conf = lib.load_config_namespace(config_file)
 
-    vehicle = TunerCar(conf)
-    # vehicle = FollowTheGap(conf)
+    # vehicle = TunerCar(conf)
+    vehicle = FollowTheGap(conf)
 
     # test_vehicle(conf, vehicle)
     run_multi_test(conf, vehicle)

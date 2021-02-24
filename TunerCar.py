@@ -61,9 +61,10 @@ class TunerCar:
 
         plt.figure(1)
         plt.plot(self.wpts[:, 0], self.wpts[:, 1])
+        plt.plot(self.wpts[0, 0], self.wpts[0, 1], 'x', markersize=20)
         plt.gca().set_aspect('equal', 'datalim')
 
-        plt.show()
+        plt.pause(0.0001)
 
     def _get_current_waypoint(self, position):
         # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)

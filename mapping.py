@@ -227,81 +227,81 @@ class PreMap:
 
         return xs, ys
 
-    # def find_nvecs(self):
-    #     N = self.N
-    #     track = self.cline
-
-    #     nvecs = []
-    #     # new_track.append(track[0, :])
-    #     nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[0, :], track[1, :]))
-    #     nvecs.append(nvec)
-    #     for i in range(1, len(track)-1):
-    #         pt1 = track[i-1]
-    #         pt2 = track[min((i, N)), :]
-    #         pt3 = track[min((i+1, N-1)), :]
-
-    #         th1 = lib.get_bearing(pt1, pt2)
-    #         th2 = lib.get_bearing(pt2, pt3)
-    #         if th1 == th2:
-    #             th = th1
-    #         else:
-    #             dth = lib.sub_angles_complex(th1, th2) / 2
-    #             th = lib.add_angles_complex(th2, dth)
-
-    #         new_th = th + np.pi/2
-    #         nvec = lib.theta_to_xy(new_th)
-    #         nvecs.append(nvec)
-
-    #     nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[-2, :], track[-1, :]))
-    #     nvecs.append(nvec)
-
-    #     self.nvecs = np.array(nvecs)
-
     def find_nvecs(self):
-        N = len(self.cline)
+        N = self.N
+        track = self.cline
 
-        n_search = 64
-        d_th = np.pi * 2 / n_search
-        xs, ys = [], []
-        for i in range(n_search):
-            th = i * d_th
-            xs.append(np.cos(th))
-            ys.append(np.sin(th))
-
-        xs = np.array(xs)
-        ys = np.array(ys)
-
-        sf = 0.8
         nvecs = []
-        widths = []
-        for i in range(self.N):
-            pt = self.cline[i]
-            c, r = self.xy_to_row_column(pt)
-            val = self.dt[r, c] * sf 
-            widths.append(val)
+        # new_track.append(track[0, :])
+        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[0, :], track[1, :]))
+        nvecs.append(nvec)
+        for i in range(1, len(track)-1):
+            pt1 = track[i-1]
+            pt2 = track[min((i, N)), :]
+            pt3 = track[min((i+1, N-1)), :]
 
-            s_vals = np.zeros(n_search)
-            s_pts = np.zeros((n_search, 2))
-            for j in range(n_search):
-                dpt = np.array([xs[j]+val, ys[j]*val]) / self.resolution
-                # dpt_c, dpt_r = self.xy_to_row_column(dpt)
-                # s_vals[i] = self.dt[r+dpt_r, c+dpt_c]
-                s_pt = [int(round(r+dpt[1])), int(round(c+dpt[0]))]
-                s_pts[j] = s_pt
-                s_vals[j] = self.dt[s_pt[0], s_pt[1]]
+            th1 = lib.get_bearing(pt1, pt2)
+            th2 = lib.get_bearing(pt2, pt3)
+            if th1 == th2:
+                th = th1
+            else:
+                dth = lib.sub_angles_complex(th1, th2) / 2
+                th = lib.add_angles_complex(th2, dth)
 
-            print(f"S_vals: {s_vals}")
-            idx = np.argmin(s_vals) # closest to border
-
-            th = d_th * idx
-
-            nvec = [xs[idx], ys[idx]]
+            new_th = th + np.pi/2
+            nvec = lib.theta_to_xy(new_th)
             nvecs.append(nvec)
 
-            self.plot_nvec_finding(nvecs, widths, s_pts, pt)
+        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[-2, :], track[-1, :]))
+        nvecs.append(nvec)
 
         self.nvecs = np.array(nvecs)
-        plt.show()
+
+    # def find_nvecs(self):
+    #     N = len(self.cline)
+
+    #     n_search = 64
+    #     d_th = np.pi * 2 / n_search
+    #     xs, ys = [], []
+    #     for i in range(n_search):
+    #         th = i * d_th
+    #         xs.append(np.cos(th))
+    #         ys.append(np.sin(th))
+
+    #     xs = np.array(xs)
+    #     ys = np.array(ys)
+
+    #     sf = 0.8
+    #     nvecs = []
+    #     widths = []
+    #     for i in range(self.N):
+    #         pt = self.cline[i]
+    #         c, r = self.xy_to_row_column(pt)
+    #         val = self.dt[r, c] * sf 
+    #         widths.append(val)
+
+    #         s_vals = np.zeros(n_search)
+    #         s_pts = np.zeros((n_search, 2))
+    #         for j in range(n_search):
+    #             dpt = np.array([xs[j]+val, ys[j]*val]) / self.resolution
+    #             # dpt_c, dpt_r = self.xy_to_row_column(dpt)
+    #             # s_vals[i] = self.dt[r+dpt_r, c+dpt_c]
+    #             s_pt = [int(round(r+dpt[1])), int(round(c+dpt[0]))]
+    #             s_pts[j] = s_pt
+    #             s_vals[j] = self.dt[s_pt[0], s_pt[1]]
+
+    #         print(f"S_vals: {s_vals}")
+    #         idx = np.argmin(s_vals) # closest to border
+
+    #         th = d_th * idx
+
+    #         nvec = [xs[idx], ys[idx]]
+    #         nvecs.append(nvec)
+
+    #         self.plot_nvec_finding(nvecs, widths, s_pts, pt)
+
+    #     self.nvecs = np.array(nvecs)
+    #     plt.show()
 
     def plot_nvec_finding(self, nvecs, widths, s_pts, c_pt, wait=False):
         plt.figure(2)
@@ -444,8 +444,9 @@ def MinCurvatureTrajectory(pts, nvecs, ws):
     """
     This function uses optimisation to minimise the curvature of the path
     """
-    w_min = - ws[:, 0] * 0.9
-    w_max = ws[:, 1] * 0.9
+    width_factor = 0.7
+    w_min = - ws[:, 0] * width_factor
+    w_max = ws[:, 1] * width_factor
     th_ns = [lib.get_bearing([0, 0], nvecs[i, 0:2]) for i in range(len(nvecs))]
 
     N = len(pts)
