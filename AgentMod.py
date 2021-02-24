@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from ModelsRL import TD3
+import csv
 
 import LibFunctions as lib
 from mapping import PreMap
@@ -14,7 +15,6 @@ class BaseMod:
     def __init__(self, conf, agent_name) -> None:
         self.conf = conf
         self.name = agent_name
-        self.env_map = None
         self.path_name = None
 
         mu = conf.mu
@@ -46,22 +46,20 @@ class BaseMod:
             pre_map = PreMap(self.conf)
             pre_map.run_conversion()
             self._load_csv_track()
+        # self.plot_track_pts()
+        
 
     def _load_csv_track(self):
-        # track_data = []
-        # filename = 'maps/' + self.conf.map_name + '_opti.csv'
+        track = []
+        filename = 'maps/' + self.conf.map_name + "_opti.csv"
+        with open(filename, 'r') as csvfile:
+            csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
         
-        # with open(filename, 'r') as csvfile:
-        #     csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
-    
-        #     for lines in csvFile:  
-        #         track_data.append(lines)
+            for lines in csvFile:  
+                track.append(lines)
 
-        # track = np.array(track_data)
-        # print(f"Track Loaded: {filename}")
-
-        track = np.loadtxt('example_waypoints.csv', delimiter=';', skiprows=3)
-
+        track = np.array(track)
+        print(f"Track Loaded: {filename}")
 
         self.N = len(track)
         self.ss = track[:, 0]
@@ -70,6 +68,16 @@ class BaseMod:
 
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
+
+        self.plot_track_pts()
+
+    def plot_track_pts(self):
+        # plt.imshow(self.)
+        plt.figure(1)
+        plt.plot(self.wpts[:, 0], self.wpts[:, 1], 'x')
+        plt.plot(self.wpts[0, 0], self.wpts[0, 1], '+', markersize=20)
+        plt.gca().set_aspect('equal', 'datalim')
+        # plt.show()
 
 
     def _get_current_waypoint(self, position):
@@ -168,7 +176,10 @@ class BaseMod:
         vr_scale = [(speed_ref)/self.max_v]
         dr_scale = [steer_ref/self.max_d]
 
-        scan = obs['scans'][ego_idx]
+        scan = np.array(obs['scans'][ego_idx])
+        scan_scale = 10
+        scan = np.clip(scan/10, 0, 1)
+
 
         nn_obs = np.concatenate([cur_v, cur_d, vr_scale, dr_scale, scan])
 

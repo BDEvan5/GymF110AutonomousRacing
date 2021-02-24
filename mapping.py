@@ -1,3 +1,4 @@
+from locale import windows_locale
 from numpy.core.fromnumeric import clip
 from LibFunctions import load_config_namespace
 import yaml 
@@ -42,12 +43,13 @@ class PreMap:
         self.find_centerline(False)
         self.find_nvecs()
         self.set_true_widths()
+        self.render_map()
 
         self.save_map()
         self.run_optimisation_no_obs()
         self.save_map_opti()
 
-        self.render_map()
+        self.render_map(True)
         
     def read_yaml_file(self):
         file_name = 'maps/' + self.map_name + '.yaml'
@@ -144,7 +146,7 @@ class PreMap:
     def find_centerline(self, show=True):
         dt = self.dt
 
-        d_search = 0.5 
+        d_search = 0.8
         n_search = 11
         dth = (np.pi * 4/5) / (n_search-1)
 
@@ -189,7 +191,7 @@ class PreMap:
         print(f"Raceline found")
         if show:
             self.plot_raceline_finding(True)
-        self.plot_raceline_finding(True)
+        self.plot_raceline_finding(False)
 
     def plot_raceline_finding(self, wait=False):
         plt.figure(1)
@@ -225,77 +227,142 @@ class PreMap:
 
         return xs, ys
 
+    # def find_nvecs(self):
+    #     N = self.N
+    #     track = self.cline
+
+    #     nvecs = []
+    #     # new_track.append(track[0, :])
+    #     nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[0, :], track[1, :]))
+    #     nvecs.append(nvec)
+    #     for i in range(1, len(track)-1):
+    #         pt1 = track[i-1]
+    #         pt2 = track[min((i, N)), :]
+    #         pt3 = track[min((i+1, N-1)), :]
+
+    #         th1 = lib.get_bearing(pt1, pt2)
+    #         th2 = lib.get_bearing(pt2, pt3)
+    #         if th1 == th2:
+    #             th = th1
+    #         else:
+    #             dth = lib.sub_angles_complex(th1, th2) / 2
+    #             th = lib.add_angles_complex(th2, dth)
+
+    #         new_th = th + np.pi/2
+    #         nvec = lib.theta_to_xy(new_th)
+    #         nvecs.append(nvec)
+
+    #     nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[-2, :], track[-1, :]))
+    #     nvecs.append(nvec)
+
+    #     self.nvecs = np.array(nvecs)
+
     def find_nvecs(self):
-        N = self.N
-        track = self.cline
+        N = len(self.cline)
 
+        n_search = 64
+        d_th = np.pi * 2 / n_search
+        xs, ys = [], []
+        for i in range(n_search):
+            th = i * d_th
+            xs.append(np.cos(th))
+            ys.append(np.sin(th))
+
+        xs = np.array(xs)
+        ys = np.array(ys)
+
+        sf = 0.8
         nvecs = []
-        # new_track.append(track[0, :])
-        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[0, :], track[1, :]))
-        nvecs.append(nvec)
-        for i in range(1, len(track)-1):
-            pt1 = track[i-1]
-            pt2 = track[min((i, N)), :]
-            pt3 = track[min((i+1, N-1)), :]
+        widths = []
+        for i in range(self.N):
+            pt = self.cline[i]
+            c, r = self.xy_to_row_column(pt)
+            val = self.dt[r, c] * sf 
+            widths.append(val)
 
-            th1 = lib.get_bearing(pt1, pt2)
-            th2 = lib.get_bearing(pt2, pt3)
-            if th1 == th2:
-                th = th1
-            else:
-                dth = lib.sub_angles_complex(th1, th2) / 2
-                th = lib.add_angles_complex(th2, dth)
+            s_vals = np.zeros(n_search)
+            s_pts = np.zeros((n_search, 2))
+            for j in range(n_search):
+                dpt = np.array([xs[j]+val, ys[j]*val]) / self.resolution
+                # dpt_c, dpt_r = self.xy_to_row_column(dpt)
+                # s_vals[i] = self.dt[r+dpt_r, c+dpt_c]
+                s_pt = [int(round(r+dpt[1])), int(round(c+dpt[0]))]
+                s_pts[j] = s_pt
+                s_vals[j] = self.dt[s_pt[0], s_pt[1]]
 
-            new_th = th + np.pi/2
-            nvec = lib.theta_to_xy(new_th)
+            print(f"S_vals: {s_vals}")
+            idx = np.argmin(s_vals) # closest to border
+
+            th = d_th * idx
+
+            nvec = [xs[idx], ys[idx]]
             nvecs.append(nvec)
 
-        nvec = lib.theta_to_xy(np.pi/2 + lib.get_bearing(track[-2, :], track[-1, :]))
-        nvecs.append(nvec)
+            self.plot_nvec_finding(nvecs, widths, s_pts, pt)
 
         self.nvecs = np.array(nvecs)
+        plt.show()
+
+    def plot_nvec_finding(self, nvecs, widths, s_pts, c_pt, wait=False):
+        plt.figure(2)
+        plt.clf()
+        plt.imshow(self.map_img, origin='lower')
+
+        xs, ys = [], []
+        for pt in self.cline:
+            s_x, s_y = self.xy_to_row_column(pt)
+            xs.append(s_x)
+            ys.append(s_y)
+        plt.plot(xs, ys, linewidth=2)
+
+        for i in range(len(s_pts)-1):
+            plt.plot(s_pts[i, 1], s_pts[i, 0], 'x')
+
+        c, r = self.xy_to_row_column(c_pt)
+        plt.plot(c, r, '+', markersize=20)
+
+        for i in range(len(nvecs)):
+            pt = self.cline[i]
+            n = nvecs[i]
+            w = widths[i]
+            dpt = np.array([n[0]*w, n[1]*w])
+            p1 = pt - dpt
+            p2 = pt + dpt
+
+            lx, ly = self.convert_positions(np.array([p1, p2]))
+            plt.plot(lx, ly, linewidth=1)
+
+            # plt.plot(p1, p2)
+        plt.pause(0.001)
+
+
+        cx, cy = self.convert_positions(self.cline)
+        plt.plot(cx, cy, '--', linewidth=2)
+
+        # plt.show()
+        plt.pause(0.0001)
+        if wait:
+            plt.show()
 
     def set_true_widths(self):
-        nvecs = self.nvecs
         tx = self.cline[:, 0]
         ty = self.cline[:, 1]
 
-        stp_sze = 0.01
         sf = 0.9 # safety factor
         nws, pws = [], []
-        # for i in range(self.N):
-        #     pt = [tx[i], ty[i]]
-        #     nvec = nvecs[i]
-
-        #     j = stp_sze
-        #     s_pt = lib.add_locations(pt, nvec, j)
-        #     while not self.check_scan_location(s_pt):
-        #         j += stp_sze
-        #         s_pt = lib.add_locations(pt, nvec, j)
-        #     pws.append(j*sf)
-
-        #     j = stp_sze
-        #     s_pt = lib.sub_locations(pt, nvec, j)
-        #     while not self.check_scan_location(s_pt):
-        #         j += stp_sze
-        #         s_pt = lib.sub_locations(pt, nvec, j)
-        #     nws.append(j*sf)
 
         for i in range(self.N):
             pt = [tx[i], ty[i]]
             c, r = self.xy_to_row_column(pt)
-            val = self.dt[r, c] * 0.9
+            val = self.dt[r, c] * sf
             nws.append(val)
             pws.append(val)
 
         nws, pws = np.array(nws), np.array(pws)
 
-        # nws = 1.5 * np.ones(len(self.nvecs))
-        # pws = 1.5 * np.ones(len(self.nvecs))
-
         self.widths =  np.concatenate([nws[:, None], pws[:, None]], axis=-1)     
 
-    def render_map(self):
+    def render_map(self, wait=False):
         plt.figure(2)
         plt.clf()
         plt.imshow(self.map_img, origin='lower')
@@ -319,10 +386,14 @@ class PreMap:
         rx, ry = self.convert_positions(r_line)
         plt.plot(rx, ry, linewidth=1)
 
-        wpt_x, wpt_y = self.convert_positions(self.wpts)
-        plt.plot(wpt_x, wpt_y, linewidth=2)
+        if self.wpts is not None:
+            wpt_x, wpt_y = self.convert_positions(self.wpts)
+            plt.plot(wpt_x, wpt_y, linewidth=2)
 
-        plt.show()
+        # plt.show()
+        plt.pause(0.0001)
+        if wait:
+            plt.show()
 
     def check_scan_location(self, pt):
         c, r = self.xy_to_row_column(pt)
@@ -350,8 +421,8 @@ class PreMap:
         deviation = np.array([self.nvecs[:, 0] * n_set[:, 0], self.nvecs[:, 1] * n_set[:, 0]]).T
         self.wpts = self.cline + deviation
 
-        self.vs = Max_velocity(self.wpts, self.conf, False)
-        # self.vs = Max_velocity(self.wpts, self.conf, True)
+        # self.vs = Max_velocity(self.wpts, self.conf, False)
+        self.vs = Max_velocity(self.wpts, self.conf, True)
 
     def save_map_opti(self):
         filename = 'maps/' + self.map_name + '_opti.csv'
@@ -513,8 +584,8 @@ def Max_velocity(pts, conf, show=False):
                 ) \
     }
 
-    S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':0}})
-    # S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':5}})
+    # S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':0}})
+    S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':5}})
 
     # make init sol
     v0 = np.ones(N) * max_v/2
@@ -562,14 +633,18 @@ def Max_velocity(pts, conf, show=False):
 
     if show:
         plt.figure(1)
+        plt.clf()
         plt.title("Velocity vs dt")
         plt.plot(t, vs)
-        plt.plot(t, dx)
-        plt.plot(t, dy)
-        plt.legend(['v', 'dx', 'dy'])
+        plt.plot(t, th_i)
+        plt.legend(['vs', 'ths'])
+        # plt.plot(t, dx)
+        # plt.plot(t, dy)
+        # plt.legend(['v', 'dx', 'dy'])
         plt.plot(t, np.ones_like(t) * max_v, '--')
 
-        plt.figure(2)
+        plt.figure(3)
+        plt.clf()
         plt.title("F_long, F_lat vs t")
         plt.plot(t[:-1], f_long)
         plt.plot(t[:-1], f_lat)
@@ -581,15 +656,8 @@ def Max_velocity(pts, conf, show=False):
 
         plt.legend(['Flong', "f_lat", "f_t"])
 
-        plt.figure(3)
-        plt.title("Theta vs t")
-        plt.plot(t, th_i)
-        # plt.plot(t, np.abs(th_i))
-
-        plt.figure(5)
-        plt.title(f"t vs dt")
-        plt.plot(t[1:], dt)
-        plt.plot(t[1:], dt, '+')
+        # plt.show()
+        plt.pause(0.001)
     
     # plt.figure(9)
     # plt.clf()
@@ -620,7 +688,7 @@ def convert_pts_s_th(pts):
 
 
 if __name__ == "__main__":
-    fname = "config_example_map"
+    # fname = "config_example_map"
     fname = "config_test"
     # fname = "vegas"
     conf = lib.load_config_namespace(fname)

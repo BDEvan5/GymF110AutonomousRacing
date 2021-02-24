@@ -1,3 +1,4 @@
+from numpy.core import einsumfunc
 import LibFunctions as lib
 import os, shutil
 import csv
@@ -55,8 +56,12 @@ class TrainHistory():
 
 
     def print_update(self):
-        mean = np.mean(self.rewards)
-        score = self.rewards[-1]
+        try:
+            mean = np.mean(self.rewards)
+            score = self.rewards[-1]
+        except IndexError:
+            score = mean = 0
+            print(f"No Rewards yet")
         print(f"Run: {self.t_counter} --> Score: {score:.2f} --> Mean: {mean:.2f} --> ")
         
         lib.plot(self.rewards, figure_n=2)

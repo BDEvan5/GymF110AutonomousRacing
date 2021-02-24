@@ -62,6 +62,7 @@ def TrainVehicle(conf, vehicle, reward, steps=20000):
             # vehicle.show_vehicle_history()
             # history.show_history()
             history.reset_history()
+            t_his.lap_done(True)
 
             vehicle.reset_lap()
             state, step_reward, done, info = env.reset(map_reset_pt)
@@ -106,12 +107,20 @@ def run_multi_test(conf, vehicle, n_tests=10):
 
         laptime = 0.0
         start = time.time()
+        obses = []
         while not done and laptime < conf.max_time:
             action = vehicle.act(obs)
             # print(action)
-            obs, step_reward, done, info = env.step(action)
+            # obs, step_reward, done, info = env.step(action)
+            for i in range(conf.plan_frequency):
+                obs, r, done, info = env.step(action)
+                if obs['collisions'][0] == 1:
+                    break
+
             laptime += step_reward
-            env.render(mode='human_fast')
+            # env.render(mode='human_fast')
+            obses.append(obs)
+            env.render(mode='human')
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
 
 
@@ -133,7 +142,7 @@ def train_mod_time():
     agent_name = "ModTime_test"
     conf = lib.load_config_namespace(config_test)
     vehicle = ModVehicleTrain(conf, agent_name, False)
-    reward = TimeReward(conf, 0.06)
+    reward = TimeReward(conf, 0.12)
 
     # vehicle = TunerCar(conf)
 

@@ -1,0 +1,18 @@
+crop_x:
+- 480
+- 1050
+crop_y:
+- 250
+- 720
+free_thresh: 0.196
+image: race_track.pgm
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -30.024998
+- -30.024998
+- 0.0
+resolution: 0.05
+start:
+- 8.65
+- 18.8

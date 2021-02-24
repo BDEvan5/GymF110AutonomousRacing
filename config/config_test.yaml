@@ -5,13 +5,18 @@
 # map_name: "example_map"
 # map_name: "vegas"
 # map_name: "stata_basement"
-map_name: "berlin"
-map_ext: ".png"
+# map_name: "berlin"
+map_name: "porto"
+# map_name: "race_track"
+# map_ext: ".png"
+map_ext: ".pgm"
 
 # starting positions for vehicle
 sx: 0.0
 sy: 0.0
-stheta: 1.37079632679 
+# stheta: 1.37079632679 
+# stheta: 0.5
+stheta: -3.1
 
 mu: 0.523
 m: 3.47

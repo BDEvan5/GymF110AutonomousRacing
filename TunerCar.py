@@ -3,6 +3,7 @@ import numpy as np
 from mapping import PreMap
 import csv
 from numba import njit
+from matplotlib import pyplot as plt
 
 
 class TunerCar:
@@ -57,6 +58,12 @@ class TunerCar:
 
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
+
+        plt.figure(1)
+        plt.plot(self.wpts[:, 0], self.wpts[:, 1])
+        plt.gca().set_aspect('equal', 'datalim')
+
+        plt.show()
 
     def _get_current_waypoint(self, position):
         # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)
