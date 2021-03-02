@@ -62,86 +62,90 @@ class PreMap:
         self.origin = self.yaml_file['origin']
 
     def load_map(self):
-
-        map_file_name = self.yaml_file['image']
-        pgm_name = 'maps/' + map_file_name
-
-        if self.map_ext == '.pgm':
-            with open(pgm_name, 'rb') as f:
-                codec = f.readline()
-
-            if codec == b"P2\n":
-                self.read_p2(pgm_name)
-            elif codec == b'P5\n':
-                self.read_p5(pgm_name)
-            else:
-                raise Exception(f"Incorrect format of PGM: {codec}")
-
-        elif self.map_ext == ".png":
-            self.read_png()
-            # raise NotImplementedError
-        else:
-            raise ImportError("Map extension is not understood")
-
-        self.obs_map = np.zeros_like(self.map_img)
-        print(f"Map size: {self.width * self.resolution}, {self.height * self.resolution}")
-
-    def read_png(self):
-        map_img_path = "maps/" + self.map_name + self.map_ext
+        map_img_path = 'maps/' + self.yaml_file['image']
+        np.array(Image.open(map_img_path))
         self.map_img = np.array(Image.open(map_img_path).transpose(Image.FLIP_TOP_BOTTOM))
-        # self.map_img = img.imread(self.map_name+self.map_ext)
-        # self.map_img = np.array(self.map_img)
-        self.height = self.map_img.shape[1]
-        self.width = self.map_img.shape[0]
+        try:
+            self.map_img = self.map_img[:, :, 0] / 255
+        except:
+            self.map_img = self.map_img / 255
 
-    #TODO: flip the pgm files that are read top to bottom
-    def read_p2(self, pgm_name):
-        print(f"Reading P2 maps")
-        with open(pgm_name, 'r') as f:
-            lines = f.readlines()
+    #     if self.map_ext == '.pgm':
+    #         with open(pgm_name, 'rb') as f:
+    #             codec = f.readline()
 
-        # This ignores commented lines
-        for l in list(lines):
-            if l[0] == '#':
-                lines.remove(l)
-        # here,it makes sure it is ASCII format (P2)
-        codec = lines[0].strip()
+    #         if codec == b"P2\n":
+    #             self.read_p2(pgm_name)
+    #         elif codec == b'P5\n':
+    #             self.read_p5(pgm_name)
+    #         else:
+    #             raise Exception(f"Incorrect format of PGM: {codec}")
 
-        # Converts data to a list of integers
-        data = []
-        for line in lines[1:]:
-            data.extend([int(c) for c in line.split()])
+    #     elif self.map_ext == ".png":
+    #         self.read_png()
+    #         # raise NotImplementedError
+    #     else:
+    #         raise ImportError("Map extension is not understood")
 
-        data = (np.array(data[3:]),(data[1],data[0]),data[2])
-        self.width = data[1][1]
-        self.height = data[1][0]
+    #     self.obs_map = np.zeros_like(self.map_img)
+    #     print(f"Map size: {self.width * self.resolution}, {self.height * self.resolution}")
 
-        data = np.reshape(data[0],data[1])
+    # def read_png(self):
+    #     map_img_path = "maps/" + self.map_name + self.map_ext
+    #     self.map_img = np.array(Image.open(map_img_path).transpose(Image.FLIP_TOP_BOTTOM))
+    #     # self.map_img = img.imread(self.map_name+self.map_ext)
+    #     # self.map_img = np.array(self.map_img)
+    #     self.height = self.map_img.shape[1]
+    #     self.width = self.map_img.shape[0]
 
-        self.map_img = data
+    # #TODO: flip the pgm files that are read top to bottom
+    # def read_p2(self, pgm_name):
+    #     print(f"Reading P2 maps")
+    #     with open(pgm_name, 'r') as f:
+    #         lines = f.readlines()
+
+    #     # This ignores commented lines
+    #     for l in list(lines):
+    #         if l[0] == '#':
+    #             lines.remove(l)
+    #     # here,it makes sure it is ASCII format (P2)
+    #     codec = lines[0].strip()
+
+    #     # Converts data to a list of integers
+    #     data = []
+    #     for line in lines[1:]:
+    #         data.extend([int(c) for c in line.split()])
+
+    #     data = (np.array(data[3:]),(data[1],data[0]),data[2])
+    #     self.width = data[1][1]
+    #     self.height = data[1][0]
+
+    #     data = np.reshape(data[0],data[1])
+
+    #     self.map_img = data
     
-    def read_p5(self, pgm_name):
-        print(f"Reading P5 maps")
-        with open(pgm_name, 'rb') as pgmf:
-            assert pgmf.readline() == b'P5\n'
-            comment = pgmf.readline()
-            # comment = pgmf.readline()
-            #TODO: update this to new format in the python package
-            wh_line = pgmf.readline().split()
-            (width, height) = [int(i) for i in wh_line]
-            depth = int(pgmf.readline())
-            assert depth <= 255
+    # def read_p5(self, pgm_name):
+    #     print(f"Reading P5 maps")
+    #     with open(pgm_name, 'rb') as pgmf:
+    #         assert pgmf.readline() == b'P5\n'
+    #         comment = pgmf.readline()
+    #         # comment = pgmf.readline()
+    #         #TODO: update this to new format in the python package
+    #         wh_line = pgmf.readline().split()
+    #         (width, height) = [int(i) for i in wh_line]
+    #         depth = int(pgmf.readline())
+    #         assert depth <= 255
 
-            raster = []
-            for y in range(height):
-                row = []
-                for y in range(width):
-                    row.append(ord(pgmf.read(1)))
-                raster.append(row)
+    #         raster = []
+    #         for y in range(height):
+    #             row = []
+    #             for y in range(width):
+    #                 row.append(ord(pgmf.read(1)))
+    #             raster.append(row)
             
-        self.height = height
-        self.width = width
-        self.map_img = np.array(raster)        
+    #     self.height = height
+    #     self.width = width
+    #     self.map_img = np.array(raster)        
 
     def find_centerline(self, show=True):
         dt = self.dt
@@ -603,12 +607,15 @@ def Max_velocity(pts, conf, show=False):
 
     # make lbx, ubx
     # lbx = [-max_v] * N + [-max_v] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
-    lbx = [-max_v] * N + [0] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
-    ubx = [max_v] * N + [max_v] * N + [10] * N1 + [f_long_max] * N1 + [f_max] * N1
+    # lbx = [-max_v] * N + [0] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
+    # ubx = [max_v] * N + [max_v] * N + [10] * N1 + [f_long_max] * N1 + [f_max] * N1
+    lbx = [-max_v] * N + [0] * N + [0] * N1 + [-ca.inf] * N1 + [-f_max] * N1
+    ubx = [max_v] * N + [max_v] * N + [10] * N1 + [ca.inf] * N1 + [f_max] * N1
 
     #make lbg, ubg
     lbg = [0] * N1 + [0] * N + [0] * 2 * N1 + [0] * N1 #+ [0] * 2 
-    ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [f_max] * N1 #+ [0] * 2 
+    # ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [f_max] * N1 #+ [0] * 2 
+    ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [ca.inf] * N1 #+ [0] * 2 
 
     r = S(x0=x0, lbg=lbg, ubg=ubg, lbx=lbx, ubx=ubx)
 
@@ -654,6 +661,7 @@ def Max_velocity(pts, conf, show=False):
         plt.plot(t, np.ones_like(t) * -f_max, '--')
         plt.plot(t, np.ones_like(t) * f_long_max, '--')
         plt.plot(t, np.ones_like(t) * -f_long_max, '--')
+        plt.ylim([-25, 25])
 
         plt.legend(['Flong', "f_lat", "f_t"])
 
