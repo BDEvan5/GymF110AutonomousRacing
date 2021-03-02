@@ -36,14 +36,15 @@ class SimHistory:
 
         self.ctr += 1
 
-    def show_history(self, vs=None):
-        plt.figure(1)
+    def show_history(self, vs=None, wait=False):
+        self.plot_progress()
+        plt.figure()
         plt.clf()
         plt.title("Steer history")
         plt.plot(self.steering)
         plt.pause(0.001)
 
-        plt.figure(2)
+        plt.figure()
         plt.clf()
         plt.title("Velocity history")
         plt.plot(self.velocities)
@@ -55,6 +56,22 @@ class SimHistory:
             plt.plot(new_vs)
             plt.legend(['Actual', 'Planned'])
         plt.pause(0.001)
+
+
+        if wait:
+            plt.show()
+
+    def plot_progress(self):
+        plt.figure(1)
+        plt.clf()
+        poses = np.array(self.positions)
+        plt.title('Position History')
+        plt.xlim([-10, 12])
+        plt.ylim([-2, 20])
+        plt.plot(poses[:, 0], poses[:, 1])
+        plt.plot(poses[:, 0], poses[:, 1], 'x')
+        plt.pause(0.0001)
+
 
     def show_forces(self):
         mu = self.conf.mu
@@ -89,3 +106,16 @@ class SimHistory:
         plt.plot(-np.ones_like(f_lat) * f_max, '--')
         plt.plot(-np.ones_like(f_lat) * f_long_max, '--')
         plt.pause(0.001)
+
+    def add_step(self, obs, action):
+        ego_idx = obs['ego_idx']
+        pose_th = obs['poses_theta'][ego_idx] 
+        p_x = obs['poses_x'][ego_idx]
+        p_y = obs['poses_y'][ego_idx]
+        v_current = obs['linear_vels_x'][ego_idx]
+
+        pos = np.array([p_x, p_y], dtype=np.float)
+
+        self.positions.append(pos)
+        self.steering.append(action[0, 0])
+        self.velocities.append(action[0, 1])

@@ -99,6 +99,7 @@ def test_vehicle(conf, vehicle):
 
 def run_multi_test(conf, vehicle, n_tests=10):
     env = gym.make('f110_gym:f110-v0', map=conf.map_name, map_ext=conf.map_ext, num_agents=1)
+    s_hist = sim_history.SimHistory(conf)
 
     for i in range(n_tests):
 
@@ -116,7 +117,9 @@ def run_multi_test(conf, vehicle, n_tests=10):
                 obs, r, done, info = env.step(action)
                 if obs['collisions'][0] == 1:
                     break
-
+            
+            s_hist.add_step(obs, action)
+            # s_hist.plot_progress()
             laptime += step_reward
             # env.render(mode='human_fast')
             obses.append(obs)
@@ -124,7 +127,7 @@ def run_multi_test(conf, vehicle, n_tests=10):
             env.render(mode='human_fast')
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
         print(f"LapTime: {obs['lap_times'][0]}")
-
+        s_hist.show_history(wait=True)
 
 
 
