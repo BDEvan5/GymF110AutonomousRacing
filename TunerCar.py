@@ -26,6 +26,10 @@ class TunerCar:
         self.vgain = conf.v_gain
         self.wheelbase =  conf.l_f + conf.l_r
 
+        self.wpt_ys = []
+        self.prv_pt = np.array([0, 0, 0])
+        self.wpts_followed = []
+
         try:
             # raise FileNotFoundError
             self._load_csv_track()
@@ -98,6 +102,9 @@ class TunerCar:
         if lookahead_point is None:
             return 4.0, 0.0
 
+        if lookahead_point is not self.prv_pt:
+            self.wpts_followed.append(self.prv_pt)
+            self.prv_pt = lookahead_point
 
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
         # speed, steering_angle = get_actuation(pose_th, lookahead_point, pos, self.lookahead, self.wheelbase)
@@ -106,7 +113,7 @@ class TunerCar:
         d_max = 0.4
         steering_angle = np.clip(steering_angle, -d_max, d_max)
 
-        # print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:2]}, Ang: {ang_vel} --> Str {steering_angle}")
+        print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:2]}, Ang: {ang_vel} --> Str {steering_angle}")
 
         # avg_speed = max(speed, v_current)
         # steering_angle = self.limit_inputs(avg_speed, steering_angle)
@@ -126,7 +133,7 @@ class TunerCar:
         # waypoint_y = np.dot(np.array([np.cos(pose_theta), np.sin(-pose_theta)]), lookahead_point[0:2]-position)
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)
         # print(f"Wpt_Y: {waypoint_y}")
-
+        self.wpt_ys.append(waypoint_y)
 
         speed = lookahead_point[2]
         if np.abs(waypoint_y) < 1e-6:
@@ -149,7 +156,24 @@ class TunerCar:
         min_dist_segment = np.argmin(dists)
         return projections[min_dist_segment], dists[min_dist_segment], t[min_dist_segment], min_dist_segment
 
+    def plot_wpt_ys(self):
+        plt.figure(5)
+        plt.title('Waypoint YYYYs')
+        plt.plot(self.wpt_ys)
+        plt.pause(0.0001)
 
+        self.wpt_ys.clear()
+
+        plt.figure(6)
+        plt.title("Wpts Followed")
+        wpts_f = np.array(self.wpts_followed)
+        print(wpts_f)
+        plt.plot(wpts_f[:, 0], wpts_f[:, 1])
+        plt.gca().set_aspect('equal', 'datalim')
+
+        plt.pause(0.0001)
+
+        self.wpts_followed.clear()
 
 
 @njit(fastmath=False, cache=True)

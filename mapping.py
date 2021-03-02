@@ -166,7 +166,7 @@ class PreMap:
         pt = start = np.array([self.conf.sx, self.conf.sy])
         self.cline = [pt]
         th = self.conf.stheta - np.pi/2
-        while (lib.get_distance(pt, start) > d_search or len(self.cline) < 10) and len(self.cline) < 200:
+        while (lib.get_distance(pt, start) > d_search or len(self.cline) < 10) and len(self.cline) < 500:
             vals = []
             self.search_space = []
             for i in range(n_search):
