@@ -4,11 +4,11 @@
 # map data
 # map_name: "example_map"
 # map_name: "vegas"
-map_name: "torino"
+# map_name: "torino"
 # map_name: "levine_blocked"
 # map_name: "stata_basement"
 # map_name: "berlin"
-# map_name: "porto"
+map_name: "porto"
 # map_name: "race_track"
 # map_ext: ".png"
 map_ext: ".pgm"
@@ -19,7 +19,8 @@ sy: 0.0
 # stheta: 1.37079632679 
 # stheta: 0.5
 # stheta: - 3.1
-stheta: 0
+stheta:  3.1
+# stheta: 0
 
 mu: 0.523
 m: 3.47
@@ -44,6 +45,6 @@ h: 200
 r_dis_scale: 1
 
 plan_frequency: 1
-max_time: 10000
+max_time: 14
 
 

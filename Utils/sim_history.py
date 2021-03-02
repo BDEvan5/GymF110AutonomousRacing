@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import csv 
 
 
 class SimHistory:
@@ -7,9 +8,13 @@ class SimHistory:
         self.conf = conf
         self.positions = []
         self.steering = []
+        self.vel_cmds = []
         self.velocities = []
         self.obs_locations = []
         self.thetas = []
+
+        self.wpts = None
+        self.vs = None
 
 
         self.ctr = 0
@@ -36,7 +41,7 @@ class SimHistory:
 
         self.ctr += 1
 
-    def show_history(self, vs=None, wait=False):
+    def show_history(self, wait=False):
         self.plot_progress()
         plt.figure()
         plt.clf()
@@ -48,13 +53,18 @@ class SimHistory:
         plt.clf()
         plt.title("Velocity history")
         plt.plot(self.velocities)
-        if vs is not None:
-            r = len(vs) / len(self.velocities)
-            new_vs = []
-            for i in range(len(self.velocities)):
-                new_vs.append(vs[int(round(r*i))])
-            plt.plot(new_vs)
-            plt.legend(['Actual', 'Planned'])
+        plt.plot(self.vel_cmds)
+        if self.vs is not None:
+            try:
+                r = len(self.vs) / len(self.velocities)
+                new_vs = []
+                for i in range(len(self.velocities)):
+                    new_vs.append(self.vs[int(round(r*i))])
+                plt.plot(new_vs)
+                plt.legend(['Actual', 'Cmds', 'Planned'])
+            except:
+                print(f"Problem showing precalc velocities")
+                plt.legend(['Actual', 'Cmds'])
         plt.pause(0.001)
 
 
@@ -64,14 +74,14 @@ class SimHistory:
     def plot_progress(self):
         plt.figure(1)
         plt.clf()
+        self.plot_wpts()
         poses = np.array(self.positions)
         plt.title('Position History')
-        plt.xlim([-10, 12])
-        plt.ylim([-2, 20])
+        # plt.xlim([-10, 12])
+        # plt.ylim([-2, 20])
         plt.plot(poses[:, 0], poses[:, 1])
-        plt.plot(poses[:, 0], poses[:, 1], 'x')
+        # plt.plot(poses[:, 0], poses[:, 1], 'x')
         plt.pause(0.0001)
-
 
     def show_forces(self):
         mu = self.conf.mu
@@ -116,6 +126,36 @@ class SimHistory:
 
         pos = np.array([p_x, p_y], dtype=np.float)
 
+        self.velocities.append(v_current)
         self.positions.append(pos)
         self.steering.append(action[0, 0])
-        self.velocities.append(action[0, 1])
+        self.vel_cmds.append(action[0, 1])
+
+    def plot_wpts(self):
+        if self.wpts is None:
+            self.load_wpts()
+
+        plt.figure(1)
+        # plt.plot(self.wpts[:, 0], self.wpts[:, 1])
+        plt.plot(self.wpts[:, 0], self.wpts[:, 1], 'x', markersize=12)
+        # plt.plot(self.wpts[0, 0], self.wpts[0, 1], 'x', markersize=20)
+        plt.gca().set_aspect('equal', 'datalim')
+
+        plt.pause(0.0001)
+
+
+    def load_wpts(self):
+        track_data = []
+        filename = 'maps/' + self.conf.map_name + '_opti.csv'
+        
+        with open(filename, 'r') as csvfile:
+            csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
+    
+            for lines in csvFile:  
+                track_data.append(lines)
+
+        track = np.array(track_data)
+        print(f"Track Loaded: {filename}")
+
+        self.wpts = track[:, 1:3]
+        self.vs = track[:, 5]

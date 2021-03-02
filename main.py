@@ -105,6 +105,7 @@ def run_multi_test(conf, vehicle, n_tests=10):
 
         obs, step_reward, done, info = env.reset(np.array([[conf.sx, conf.sy, conf.stheta]]))
         env.render()
+        # s_hist.plot_wpts()
 
         laptime = 0.0
         start = time.time()
@@ -136,8 +137,8 @@ def run_tuner_car():
     config_file = "config_test"
     conf = lib.load_config_namespace(config_file)
 
-    # vehicle = TunerCar(conf)
-    vehicle = FollowTheGap(conf)
+    vehicle = TunerCar(conf)
+    # vehicle = FollowTheGap(conf)
 
     # test_vehicle(conf, vehicle)
     run_multi_test(conf, vehicle)

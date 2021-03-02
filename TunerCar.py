@@ -31,9 +31,10 @@ class TunerCar:
             self._load_csv_track()
         except FileNotFoundError:
             print(f"Problem Loading map - generating")
-            pre_map = PreMap(self.conf)
-            pre_map.run_conversion()
-            self._load_csv_track()
+            raise FileNotFoundError
+            # pre_map = PreMap(self.conf)
+            # pre_map.run_conversion()
+            # self._load_csv_track()
 
     def _load_csv_track(self):
         track_data = []
@@ -48,8 +49,6 @@ class TunerCar:
         track = np.array(track_data)
         print(f"Track Loaded: {filename}")
 
-        # track = np.loadtxt('example_waypoints.csv', delimiter=';', skiprows=3)
-
 
         self.N = len(track)
         self.ss = track[:, 0]
@@ -59,12 +58,12 @@ class TunerCar:
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
 
-        plt.figure(1)
-        plt.plot(self.wpts[:, 0], self.wpts[:, 1])
-        plt.plot(self.wpts[0, 0], self.wpts[0, 1], 'x', markersize=20)
-        plt.gca().set_aspect('equal', 'datalim')
+        # plt.figure(1)
+        # plt.plot(self.wpts[:, 0], self.wpts[:, 1])
+        # plt.plot(self.wpts[0, 0], self.wpts[0, 1], 'x', markersize=20)
+        # plt.gca().set_aspect('equal', 'datalim')
 
-        plt.pause(0.0001)
+        # plt.pause(0.0001)
 
     def _get_current_waypoint(self, position):
         # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)
@@ -90,6 +89,7 @@ class TunerCar:
         p_x = obs['poses_x'][ego_idx]
         p_y = obs['poses_y'][ego_idx]
         v_current = obs['linear_vels_x'][ego_idx]
+        ang_vel = obs['ang_vels_z']
 
         pos = np.array([p_x, p_y], dtype=np.float)
 
@@ -98,9 +98,15 @@ class TunerCar:
         if lookahead_point is None:
             return 4.0, 0.0
 
+
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
         # speed, steering_angle = get_actuation(pose_th, lookahead_point, pos, self.lookahead, self.wheelbase)
-        speed = self.vgain * speed
+        speed = self.vgain * speed * 0.8
+
+        d_max = 0.4
+        steering_angle = np.clip(steering_angle, -d_max, d_max)
+
+        # print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:2]}, Ang: {ang_vel} --> Str {steering_angle}")
 
         # avg_speed = max(speed, v_current)
         # steering_angle = self.limit_inputs(avg_speed, steering_angle)
@@ -119,7 +125,9 @@ class TunerCar:
     def get_actuation(self, pose_theta, lookahead_point, position):
         # waypoint_y = np.dot(np.array([np.cos(pose_theta), np.sin(-pose_theta)]), lookahead_point[0:2]-position)
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)
-        
+        # print(f"Wpt_Y: {waypoint_y}")
+
+
         speed = lookahead_point[2]
         if np.abs(waypoint_y) < 1e-6:
             return speed, 0.
