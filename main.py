@@ -120,8 +120,10 @@ def run_multi_test(conf, vehicle, n_tests=10):
             laptime += step_reward
             # env.render(mode='human_fast')
             obses.append(obs)
-            env.render(mode='human')
+            # env.render(mode='human')
+            env.render(mode='human_fast')
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
+        print(f"LapTime: {obs['lap_times'][0]}")
 
 
 

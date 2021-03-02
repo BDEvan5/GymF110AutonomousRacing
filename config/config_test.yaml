@@ -4,9 +4,10 @@
 # map data
 # map_name: "example_map"
 # map_name: "vegas"
+map_name: "torino"
 # map_name: "stata_basement"
 # map_name: "berlin"
-map_name: "porto"
+# map_name: "porto"
 # map_name: "race_track"
 # map_ext: ".png"
 map_ext: ".pgm"
