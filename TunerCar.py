@@ -113,7 +113,7 @@ class TunerCar:
         d_max = 0.4
         steering_angle = np.clip(steering_angle, -d_max, d_max)
 
-        print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:2]}, Ang: {ang_vel} --> Str {steering_angle}")
+        # print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:3]}, Ang: {ang_vel} --> Str {steering_angle}")
 
         # avg_speed = max(speed, v_current)
         # steering_angle = self.limit_inputs(avg_speed, steering_angle)

@@ -41,6 +41,10 @@ class PreMap:
         self.dt = np.array(self.dt *self.resolution)
 
         self.find_centerline(False)
+        self.expand_centerline()
+        self.render_map(True)
+
+
         self.find_nvecs()
         self.set_true_widths()
         self.render_map()
@@ -119,6 +123,21 @@ class PreMap:
         if show:
             self.plot_raceline_finding(True)
         self.plot_raceline_finding(False)
+
+    def expand_centerline(self):
+        n = 2 # number of pts per orig pt
+        dz = 1 / n
+        o_line = self.cline
+        new_line = []
+        for i in range(self.N-1):
+            dd = lib.sub_locations(o_line[i+1], o_line[i])
+            for j in range(n):
+                pt = lib.add_locations(o_line[i], dd, dz*j)
+                new_line.append(pt)
+
+        self.cline = np.array(new_line)
+        self.N = len(new_line)
+
 
     def plot_raceline_finding(self, wait=False):
         plt.figure(1)
@@ -294,24 +313,20 @@ class PreMap:
         plt.clf()
         plt.imshow(self.map_img, origin='lower')
 
-        xs, ys = [], []
-        for pt in self.cline:
-            s_x, s_y = self.xy_to_row_column(pt)
-            xs.append(s_x)
-            ys.append(s_y)
-        plt.plot(xs, ys, linewidth=2)
-
-        ns = self.nvecs 
-        ws = self.widths
-        l_line = self.cline - np.array([ns[:, 0] * ws[:, 0], ns[:, 1] * ws[:, 0]]).T
-        r_line = self.cline + np.array([ns[:, 0] * ws[:, 1], ns[:, 1] * ws[:, 1]]).T
-
         cx, cy = self.convert_positions(self.cline)
-        plt.plot(cx, cy, '--', linewidth=2)
-        lx, ly = self.convert_positions(l_line)
-        plt.plot(lx, ly, linewidth=1)
-        rx, ry = self.convert_positions(r_line)
-        plt.plot(rx, ry, linewidth=1)
+        # plt.plot(cx, cy, '--', linewidth=2)
+        plt.plot(cx, cy, 'x')
+
+        if self.nvecs is not None and self.widths is not None:
+            ns = self.nvecs 
+            ws = self.widths
+            l_line = self.cline - np.array([ns[:, 0] * ws[:, 0], ns[:, 1] * ws[:, 0]]).T
+            r_line = self.cline + np.array([ns[:, 0] * ws[:, 1], ns[:, 1] * ws[:, 1]]).T
+
+            lx, ly = self.convert_positions(l_line)
+            plt.plot(lx, ly, linewidth=1)
+            rx, ry = self.convert_positions(r_line)
+            plt.plot(rx, ry, linewidth=1)
 
         if self.wpts is not None:
             wpt_x, wpt_y = self.convert_positions(self.wpts)

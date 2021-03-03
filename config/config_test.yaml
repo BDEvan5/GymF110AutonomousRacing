@@ -18,7 +18,7 @@ sx: 0.0
 sy: 0.0
 # stheta: 1.37079632679 
 # stheta: 0.5
-# stheta: - 3.1
+# stheta: -3.1
 # stheta:  3.1
 stheta: 0
 
@@ -35,8 +35,8 @@ max_steer: 0.4
 
 
 
-# lookahead: 0.82
-lookahead: 0.4
+lookahead: 0.82
+# lookahead: 0.4
 v_gain: 0.9
 force_f: 0.8
 
@@ -46,6 +46,7 @@ h: 200
 r_dis_scale: 1
 
 plan_frequency: 1
-max_time: 14
+max_time: 30
+# max_time: 14
 
 
