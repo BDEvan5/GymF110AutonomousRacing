@@ -41,8 +41,8 @@ class PreMap:
         self.dt = np.array(self.dt *self.resolution)
 
         self.find_centerline(False)
-        self.expand_centerline()
-        self.render_map(True)
+        # self.expand_centerline()
+        # self.render_map(True)
 
 
         self.find_nvecs()

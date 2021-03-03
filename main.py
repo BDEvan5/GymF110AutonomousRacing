@@ -128,7 +128,7 @@ def run_multi_test(conf, vehicle, n_tests=10):
             env.render(mode='human_fast')
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
         print(f"LapTime: {obs['lap_times'][0]}")
-        vehicle.plot_wpt_ys()
+        # vehicle.plot_wpt_ys()
         s_hist.show_history(wait=True)
 
 

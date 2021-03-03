@@ -4,7 +4,7 @@ from mapping import PreMap
 import csv
 from numba import njit
 from matplotlib import pyplot as plt
-
+import LibFunctions as lib
 
 class TunerCar:
     def __init__(self, conf) -> None:
@@ -59,6 +59,8 @@ class TunerCar:
         self.wpts = track[:, 1:3]
         self.vs = track[:, 5]
 
+        self.expand_wpts()
+
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
 
@@ -97,14 +99,18 @@ class TunerCar:
 
         pos = np.array([p_x, p_y], dtype=np.float)
 
+        v_min_plan = 1
+        if v_current < v_min_plan:
+            return np.array([[0, 7]])
+
         lookahead_point = self._get_current_waypoint(pos)
 
         if lookahead_point is None:
             return 4.0, 0.0
 
-        if lookahead_point is not self.prv_pt:
-            self.wpts_followed.append(self.prv_pt)
-            self.prv_pt = lookahead_point
+        # if lookahead_point is not self.prv_pt:
+        #     self.wpts_followed.append(self.prv_pt)
+        #     self.prv_pt = lookahead_point
 
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
         # speed, steering_angle = get_actuation(pose_th, lookahead_point, pos, self.lookahead, self.wheelbase)
@@ -133,7 +139,7 @@ class TunerCar:
         # waypoint_y = np.dot(np.array([np.cos(pose_theta), np.sin(-pose_theta)]), lookahead_point[0:2]-position)
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)
         # print(f"Wpt_Y: {waypoint_y}")
-        self.wpt_ys.append(waypoint_y)
+        # self.wpt_ys.append(waypoint_y)
 
         speed = lookahead_point[2]
         if np.abs(waypoint_y) < 1e-6:
@@ -174,6 +180,32 @@ class TunerCar:
         plt.pause(0.0001)
 
         self.wpts_followed.clear()
+
+    def expand_wpts(self):
+        n = 5 # number of pts per orig pt
+        dz = 1 / n
+        o_line = self.wpts
+        o_ss = self.ss
+        o_vs = self.vs
+        new_line = []
+        new_ss = []
+        new_vs = []
+        for i in range(self.N-1):
+            dd = lib.sub_locations(o_line[i+1], o_line[i])
+            for j in range(n):
+                pt = lib.add_locations(o_line[i], dd, dz*j)
+                new_line.append(pt)
+
+                ds = o_ss[i+1] - o_ss[i]
+                new_ss.append(o_ss[i] + dz*j*ds)
+
+                dv = o_vs[i+1] - o_vs[i]
+                new_vs.append(o_vs[i] + dv * j * dz)
+
+        self.wpts = np.array(new_line)
+        self.ss = np.array(new_ss)
+        self.vs = np.array(new_vs)
+        self.N = len(new_line)
 
 
 @njit(fastmath=False, cache=True)
