@@ -29,6 +29,7 @@ def TrainVehicle(conf, vehicle, reward, steps=20000):
 
     done = False
     done_counter = 0
+    start = time.time()
 
     for n in range(steps):
         a = vehicle.act(state)
@@ -55,8 +56,8 @@ def TrainVehicle(conf, vehicle, reward, steps=20000):
         
         done_counter += 1
 
-        if done or done_counter>200 or s_prime['collisions'][0] == 1:
-            print(f"Done Done Done: Restart")
+        if done or s_prime['collisions'][0] == 1:
+            # print(f"Done Done Done: Restart")
             done_counter = 0
             # t_his.lap_done(True)
             # vehicle.show_vehicle_history()
@@ -64,11 +65,14 @@ def TrainVehicle(conf, vehicle, reward, steps=20000):
             history.reset_history()
             t_his.lap_done(True)
 
+            laptime = s_prime['lap_times'][0]
+            collision = s_prime['collisions'][0]
+            print(f'Col: {collision} --> Sim elapsed time: {laptime:.2f} Real elapsed time: {(time.time()-start):.2f}')
+            start = time.time()
+
             vehicle.reset_lap()
             state, step_reward, done, info = env.reset(map_reset_pt)
             env.render()
-
-            print("Reset")
 
 
     vehicle.agent.save(directory=path)
@@ -147,14 +151,14 @@ def train_mod_time():
 
     # vehicle = TunerCar(conf)
 
-    TrainVehicle(conf, vehicle, reward, 4000)
+    TrainVehicle(conf, vehicle, reward, 40000)
 
 
 
 
 if __name__ == "__main__":
-    run_tuner_car()
+    # run_tuner_car()
 
-    # train_mod_time()
+    train_mod_time()
 
 
