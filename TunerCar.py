@@ -26,6 +26,10 @@ class TunerCar:
         self.vgain = conf.v_gain
         self.wheelbase =  conf.l_f + conf.l_r
 
+        self.loop_counter = 0
+        self.plan_f = conf.plan_frequency
+        self.action = None
+
         self.wpt_ys = []
         self.prv_pt = np.array([0, 0, 0])
         self.wpts_followed = []
@@ -115,6 +119,18 @@ class TunerCar:
         # print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:3]}, Ang: {ang_vel} --> Str {steering_angle}")
 
         return np.array([[steering_angle, speed]])
+
+    def act_loop(self, obs):
+        if self.action is None or self.loop_counter == self.plan_f:
+            self.loop_counter = 0
+            self.action = self.act(obs)
+        self.loop_counter += 1
+        return self.action
+
+
+    def control_action(self, obs):
+        return self.action
+        
 
     def get_actuation(self, pose_theta, lookahead_point, position):
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)

@@ -111,7 +111,8 @@ def run_multi_test(conf, vehicle, n_tests=10):
         start = time.time()
         obses = []
         while not done and laptime < conf.max_time:
-            action = vehicle.act(obs)
+            action = vehicle.act_loop(obs)
+            # action = vehicle.act(obs)
             obs, r, done, info = env.step(action)
             
             # s_hist.add_step(obs, action)

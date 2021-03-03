@@ -45,7 +45,7 @@ h: 200
 
 r_dis_scale: 1
 
-plan_frequency: 1
+plan_frequency: 10
 max_time: 30
 # max_time: 14
 
