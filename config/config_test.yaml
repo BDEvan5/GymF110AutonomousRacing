@@ -2,13 +2,25 @@
 
 
 # map data
-map_name: "example_map"
-map_ext: ".png"
+# map_name: "example_map"
+# map_name: "vegas"
+map_name: "torino"
+# map_name: "levine_blocked"
+# map_name: "stata_basement"
+# map_name: "berlin"
+# map_name: "porto"
+# map_name: "race_track"
+# map_ext: ".png"
+map_ext: ".pgm"
 
 # starting positions for vehicle
 sx: 0.0
 sy: 0.0
-stheta: 1.37079632679 
+# stheta: 1.37079632679 
+# stheta: 0.5
+# stheta: -3.1
+# stheta:  3.1
+stheta: 2.5
 
 mu: 0.523
 m: 3.47
@@ -16,10 +28,25 @@ g: 9.81
 l_r: 0.171
 l_f: 0.158
 force_f: 0.9
+
 max_v: 7
 max_a: 8.5
+max_steer: 0.4
+
+
 
 lookahead: 0.82
+# lookahead: 0.4
 v_gain: 0.9
 force_f: 0.8
+
+n_beams: 10
+h: 200
+
+r_dis_scale: 1
+
+plan_frequency: 10
+max_time: 30
+# max_time: 14
+
 

@@ -3,7 +3,8 @@ import numpy as np
 from mapping import PreMap
 import csv
 from numba import njit
-
+from matplotlib import pyplot as plt
+import LibFunctions as lib
 
 class TunerCar:
     def __init__(self, conf) -> None:
@@ -25,38 +26,53 @@ class TunerCar:
         self.vgain = conf.v_gain
         self.wheelbase =  conf.l_f + conf.l_r
 
+        self.loop_counter = 0
+        self.plan_f = conf.plan_frequency
+        self.action = None
+
+        self.wpt_ys = []
+        self.prv_pt = np.array([0, 0, 0])
+        self.wpts_followed = []
+
         try:
             # raise FileNotFoundError
             self._load_csv_track()
         except FileNotFoundError:
             print(f"Problem Loading map - generating")
-            pre_map = PreMap(self.conf)
-            pre_map.run_conversion()
-            self._load_csv_track()
+            raise FileNotFoundError
+            # pre_map = PreMap(self.conf)
+            # pre_map.run_conversion()
+            # self._load_csv_track()
 
     def _load_csv_track(self):
-        # track_data = []
-        # filename = 'maps/' + self.conf.map_name + '_opti.csv'
+        track_data = []
+        filename = 'maps/' + self.conf.map_name + '_opti.csv'
         
-        # with open(filename, 'r') as csvfile:
-        #     csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
+        with open(filename, 'r') as csvfile:
+            csvFile = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)  
     
-        #     for lines in csvFile:  
-        #         track_data.append(lines)
+            for lines in csvFile:  
+                track_data.append(lines)
 
-        # track = np.array(track_data)
-        # print(f"Track Loaded: {filename}")
-
-        track = np.loadtxt('example_waypoints.csv', delimiter=';', skiprows=3)
-
+        track = np.array(track_data)
+        print(f"Track Loaded: {filename}")
 
         self.N = len(track)
         self.ss = track[:, 0]
         self.wpts = track[:, 1:3]
         self.vs = track[:, 5]
 
+        self.expand_wpts()
+
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
+
+        # plt.figure(1)
+        # plt.plot(self.wpts[:, 0], self.wpts[:, 1])
+        # plt.plot(self.wpts[0, 0], self.wpts[0, 1], 'x', markersize=20)
+        # plt.gca().set_aspect('equal', 'datalim')
+
+        # plt.pause(0.0001)
 
     def _get_current_waypoint(self, position):
         # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)
@@ -82,8 +98,13 @@ class TunerCar:
         p_x = obs['poses_x'][ego_idx]
         p_y = obs['poses_y'][ego_idx]
         v_current = obs['linear_vels_x'][ego_idx]
+        ang_vel = obs['ang_vels_z']
 
         pos = np.array([p_x, p_y], dtype=np.float)
+
+        v_min_plan = 1
+        if v_current < v_min_plan:
+            return np.array([[0, 7]])
 
         lookahead_point = self._get_current_waypoint(pos)
 
@@ -91,27 +112,29 @@ class TunerCar:
             return 4.0, 0.0
 
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
-        # speed, steering_angle = get_actuation(pose_th, lookahead_point, pos, self.lookahead, self.wheelbase)
-        speed = self.vgain * speed
+        speed = self.vgain * speed * 0.8
 
-        # avg_speed = max(speed, v_current)
-        # steering_angle = self.limit_inputs(avg_speed, steering_angle)
+        d_max = 0.4
+        steering_angle = np.clip(steering_angle, -d_max, d_max)
+        # print(f"Pose: {pose_th:.3f}, Pt: {lookahead_point[0:3]}, Ang: {ang_vel} --> Str {steering_angle}")
 
         return np.array([[steering_angle, speed]])
 
-    def limit_inputs(self, speed, steering_angle):
-        max_steer = np.arctan(self.f_max * self.wheelbase / (speed**2 * self.m))
-        new_steer = np.clip(steering_angle, -max_steer, max_steer)
+    def act_loop(self, obs):
+        if self.action is None or self.loop_counter == self.plan_f:
+            self.loop_counter = 0
+            self.action = self.act(obs)
+        self.loop_counter += 1
+        return self.action
 
-        if max_steer < abs(steering_angle):
-            print(f"Problem, Steering clipped from: {steering_angle} --> {new_steer}")
 
-        return new_steer
+    def control_action(self, obs):
+        return self.action
+        
 
     def get_actuation(self, pose_theta, lookahead_point, position):
-        # waypoint_y = np.dot(np.array([np.cos(pose_theta), np.sin(-pose_theta)]), lookahead_point[0:2]-position)
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)
-        
+
         speed = lookahead_point[2]
         if np.abs(waypoint_y) < 1e-6:
             return speed, 0.
@@ -133,7 +156,31 @@ class TunerCar:
         min_dist_segment = np.argmin(dists)
         return projections[min_dist_segment], dists[min_dist_segment], t[min_dist_segment], min_dist_segment
 
+    def expand_wpts(self):
+        n = 5 # number of pts per orig pt
+        dz = 1 / n
+        o_line = self.wpts
+        o_ss = self.ss
+        o_vs = self.vs
+        new_line = []
+        new_ss = []
+        new_vs = []
+        for i in range(self.N-1):
+            dd = lib.sub_locations(o_line[i+1], o_line[i])
+            for j in range(n):
+                pt = lib.add_locations(o_line[i], dd, dz*j)
+                new_line.append(pt)
 
+                ds = o_ss[i+1] - o_ss[i]
+                new_ss.append(o_ss[i] + dz*j*ds)
+
+                dv = o_vs[i+1] - o_vs[i]
+                new_vs.append(o_vs[i] + dv * j * dz)
+
+        self.wpts = np.array(new_line)
+        self.ss = np.array(new_ss)
+        self.vs = np.array(new_vs)
+        self.N = len(new_line)
 
 
 @njit(fastmath=False, cache=True)

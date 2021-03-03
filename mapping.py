@@ -1,3 +1,4 @@
+from locale import windows_locale
 from numpy.core.fromnumeric import clip
 from LibFunctions import load_config_namespace
 import yaml 
@@ -40,14 +41,19 @@ class PreMap:
         self.dt = np.array(self.dt *self.resolution)
 
         self.find_centerline(False)
+        # self.expand_centerline()
+        # self.render_map(True)
+
+
         self.find_nvecs()
         self.set_true_widths()
+        self.render_map()
 
         self.save_map()
         self.run_optimisation_no_obs()
         self.save_map_opti()
 
-        self.render_map()
+        self.render_map(True)
         
     def read_yaml_file(self):
         file_name = 'maps/' + self.map_name + '.yaml'
@@ -60,92 +66,18 @@ class PreMap:
         self.origin = self.yaml_file['origin']
 
     def load_map(self):
-
-        map_file_name = self.yaml_file['image']
-        pgm_name = 'maps/' + map_file_name
-
-        if self.map_ext == '.pgm':
-            with open(pgm_name, 'rb') as f:
-                codec = f.readline()
-
-            if codec == b"P2\n":
-                self.read_p2(pgm_name)
-            elif codec == b'P5\n':
-                self.read_p5(pgm_name)
-            else:
-                raise Exception(f"Incorrect format of PGM: {codec}")
-
-        elif self.map_ext == ".png":
-            self.read_png()
-            # raise NotImplementedError
-        else:
-            raise ImportError("Map extension is not understood")
-
-        self.obs_map = np.zeros_like(self.map_img)
-        print(f"Map size: {self.width * self.resolution}, {self.height * self.resolution}")
-
-    def read_png(self):
-        map_img_path = "maps/" + self.map_name + self.map_ext
+        map_img_path = 'maps/' + self.yaml_file['image']
+        np.array(Image.open(map_img_path))
         self.map_img = np.array(Image.open(map_img_path).transpose(Image.FLIP_TOP_BOTTOM))
-        # self.map_img = img.imread(self.map_name+self.map_ext)
-        # self.map_img = np.array(self.map_img)
-        self.height = self.map_img.shape[1]
-        self.width = self.map_img.shape[0]
-
-    #TODO: flip the pgm files that are read top to bottom
-    def read_p2(self, pgm_name):
-        print(f"Reading P2 maps")
-        with open(pgm_name, 'r') as f:
-            lines = f.readlines()
-
-        # This ignores commented lines
-        for l in list(lines):
-            if l[0] == '#':
-                lines.remove(l)
-        # here,it makes sure it is ASCII format (P2)
-        codec = lines[0].strip()
-
-        # Converts data to a list of integers
-        data = []
-        for line in lines[1:]:
-            data.extend([int(c) for c in line.split()])
-
-        data = (np.array(data[3:]),(data[1],data[0]),data[2])
-        self.width = data[1][1]
-        self.height = data[1][0]
-
-        data = np.reshape(data[0],data[1])
-
-        self.map_img = data
-    
-    def read_p5(self, pgm_name):
-        print(f"Reading P5 maps")
-        with open(pgm_name, 'rb') as pgmf:
-            assert pgmf.readline() == b'P5\n'
-            comment = pgmf.readline()
-            # comment = pgmf.readline()
-            #TODO: update this to new format in the python package
-            wh_line = pgmf.readline().split()
-            (width, height) = [int(i) for i in wh_line]
-            depth = int(pgmf.readline())
-            assert depth <= 255
-
-            raster = []
-            for y in range(height):
-                row = []
-                for y in range(width):
-                    row.append(ord(pgmf.read(1)))
-                raster.append(row)
-            
-        self.height = height
-        self.width = width
-        self.map_img = np.array(raster)        
+        try:
+            self.map_img = self.map_img[:, :, 0] / 255
+        except:
+            self.map_img = self.map_img / 255
 
     def find_centerline(self, show=True):
-        self.dt = ndimage.distance_transform_edt(self.map_img)
-        dt = np.array(self.dt) 
+        dt = self.dt
 
-        d_search = 0.5 
+        d_search = 0.8
         n_search = 11
         dth = (np.pi * 4/5) / (n_search-1)
 
@@ -161,7 +93,7 @@ class PreMap:
         pt = start = np.array([self.conf.sx, self.conf.sy])
         self.cline = [pt]
         th = self.conf.stheta - np.pi/2
-        while lib.get_distance(pt, start) > d_search or len(self.cline) < 10 and len(self.cline) < 200:
+        while (lib.get_distance(pt, start) > d_search or len(self.cline) < 10) and len(self.cline) < 500:
             vals = []
             self.search_space = []
             for i in range(n_search):
@@ -190,6 +122,22 @@ class PreMap:
         print(f"Raceline found")
         if show:
             self.plot_raceline_finding(True)
+        self.plot_raceline_finding(False)
+
+    def expand_centerline(self):
+        n = 2 # number of pts per orig pt
+        dz = 1 / n
+        o_line = self.cline
+        new_line = []
+        for i in range(self.N-1):
+            dd = lib.sub_locations(o_line[i+1], o_line[i])
+            for j in range(n):
+                pt = lib.add_locations(o_line[i], dd, dz*j)
+                new_line.append(pt)
+
+        self.cline = np.array(new_line)
+        self.N = len(new_line)
+
 
     def plot_raceline_finding(self, wait=False):
         plt.figure(1)
@@ -255,40 +203,53 @@ class PreMap:
 
         self.nvecs = np.array(nvecs)
 
-    def set_true_widths(self):
-        # nvecs = self.nvecs
-        # tx = self.cline[:, 0]
-        # ty = self.cline[:, 1]
+    # def find_nvecs(self):
+    #     N = len(self.cline)
 
-        # stp_sze = 0.01
-        # sf = 0.5 # safety factor
-        # nws, pws = [], []
-        # for i in range(self.N):
-        #     pt = [tx[i], ty[i]]
-        #     nvec = nvecs[i]
+    #     n_search = 64
+    #     d_th = np.pi * 2 / n_search
+    #     xs, ys = [], []
+    #     for i in range(n_search):
+    #         th = i * d_th
+    #         xs.append(np.cos(th))
+    #         ys.append(np.sin(th))
 
-        #     j = stp_sze
-        #     s_pt = lib.add_locations(pt, nvec, j)
-        #     while not self.check_scan_location(s_pt):
-        #         j += stp_sze
-        #         s_pt = lib.add_locations(pt, nvec, j)
-        #     pws.append(j*sf)
+    #     xs = np.array(xs)
+    #     ys = np.array(ys)
 
-        #     j = stp_sze
-        #     s_pt = lib.sub_locations(pt, nvec, j)
-        #     while not self.check_scan_location(s_pt):
-        #         j += stp_sze
-        #         s_pt = lib.sub_locations(pt, nvec, j)
-        #     nws.append(j*sf)
+    #     sf = 0.8
+    #     nvecs = []
+    #     widths = []
+    #     for i in range(self.N):
+    #         pt = self.cline[i]
+    #         c, r = self.xy_to_row_column(pt)
+    #         val = self.dt[r, c] * sf 
+    #         widths.append(val)
 
-        # nws, pws = np.array(nws), np.array(pws)
+    #         s_vals = np.zeros(n_search)
+    #         s_pts = np.zeros((n_search, 2))
+    #         for j in range(n_search):
+    #             dpt = np.array([xs[j]+val, ys[j]*val]) / self.resolution
+    #             # dpt_c, dpt_r = self.xy_to_row_column(dpt)
+    #             # s_vals[i] = self.dt[r+dpt_r, c+dpt_c]
+    #             s_pt = [int(round(r+dpt[1])), int(round(c+dpt[0]))]
+    #             s_pts[j] = s_pt
+    #             s_vals[j] = self.dt[s_pt[0], s_pt[1]]
 
-        nws = 1.5 * np.ones(len(self.nvecs))
-        pws = 1.5 * np.ones(len(self.nvecs))
+    #         print(f"S_vals: {s_vals}")
+    #         idx = np.argmin(s_vals) # closest to border
 
-        self.widths =  np.concatenate([nws[:, None], pws[:, None]], axis=-1)     
+    #         th = d_th * idx
 
-    def render_map(self):
+    #         nvec = [xs[idx], ys[idx]]
+    #         nvecs.append(nvec)
+
+    #         self.plot_nvec_finding(nvecs, widths, s_pts, pt)
+
+    #     self.nvecs = np.array(nvecs)
+    #     plt.show()
+
+    def plot_nvec_finding(self, nvecs, widths, s_pts, c_pt, wait=False):
         plt.figure(2)
         plt.clf()
         plt.imshow(self.map_img, origin='lower')
@@ -300,28 +261,88 @@ class PreMap:
             ys.append(s_y)
         plt.plot(xs, ys, linewidth=2)
 
-        ns = self.nvecs 
-        ws = self.widths
-        l_line = self.cline - np.array([ns[:, 0] * ws[:, 0], ns[:, 1] * ws[:, 0]]).T
-        r_line = self.cline + np.array([ns[:, 0] * ws[:, 1], ns[:, 1] * ws[:, 1]]).T
+        for i in range(len(s_pts)-1):
+            plt.plot(s_pts[i, 1], s_pts[i, 0], 'x')
+
+        c, r = self.xy_to_row_column(c_pt)
+        plt.plot(c, r, '+', markersize=20)
+
+        for i in range(len(nvecs)):
+            pt = self.cline[i]
+            n = nvecs[i]
+            w = widths[i]
+            dpt = np.array([n[0]*w, n[1]*w])
+            p1 = pt - dpt
+            p2 = pt + dpt
+
+            lx, ly = self.convert_positions(np.array([p1, p2]))
+            plt.plot(lx, ly, linewidth=1)
+
+            # plt.plot(p1, p2)
+        plt.pause(0.001)
+
 
         cx, cy = self.convert_positions(self.cline)
         plt.plot(cx, cy, '--', linewidth=2)
-        lx, ly = self.convert_positions(l_line)
-        plt.plot(lx, ly, linewidth=1)
-        rx, ry = self.convert_positions(r_line)
-        plt.plot(rx, ry, linewidth=1)
 
-        wpt_x, wpt_y = self.convert_positions(self.wpts)
-        plt.plot(wpt_x, wpt_y, linewidth=2)
+        # plt.show()
+        plt.pause(0.0001)
+        if wait:
+            plt.show()
 
-        plt.show()
+    def set_true_widths(self):
+        tx = self.cline[:, 0]
+        ty = self.cline[:, 1]
+
+        sf = 0.9 # safety factor
+        nws, pws = [], []
+
+        for i in range(self.N):
+            pt = [tx[i], ty[i]]
+            c, r = self.xy_to_row_column(pt)
+            val = self.dt[r, c] * sf
+            nws.append(val)
+            pws.append(val)
+
+        nws, pws = np.array(nws), np.array(pws)
+
+        self.widths =  np.concatenate([nws[:, None], pws[:, None]], axis=-1)     
+
+    def render_map(self, wait=False):
+        plt.figure(2)
+        plt.clf()
+        plt.imshow(self.map_img, origin='lower')
+
+        cx, cy = self.convert_positions(self.cline)
+        # plt.plot(cx, cy, '--', linewidth=2)
+        plt.plot(cx, cy, 'x')
+
+        if self.nvecs is not None and self.widths is not None:
+            ns = self.nvecs 
+            ws = self.widths
+            l_line = self.cline - np.array([ns[:, 0] * ws[:, 0], ns[:, 1] * ws[:, 0]]).T
+            r_line = self.cline + np.array([ns[:, 0] * ws[:, 1], ns[:, 1] * ws[:, 1]]).T
+
+            lx, ly = self.convert_positions(l_line)
+            plt.plot(lx, ly, linewidth=1)
+            rx, ry = self.convert_positions(r_line)
+            plt.plot(rx, ry, linewidth=1)
+
+        if self.wpts is not None:
+            wpt_x, wpt_y = self.convert_positions(self.wpts)
+            plt.plot(wpt_x, wpt_y, linewidth=2)
+
+        # plt.show()
+        plt.pause(0.0001)
+        if wait:
+            plt.show()
 
     def check_scan_location(self, pt):
         c, r = self.xy_to_row_column(pt)
         if abs(c) > self.width -2 or abs(r) > self.height -2:
             return True
-        if self.dt[c, r] < 0.05:
+        val = self.dt[c, r]
+        if val < 0.05:
             return True
         return False
 
@@ -342,8 +363,8 @@ class PreMap:
         deviation = np.array([self.nvecs[:, 0] * n_set[:, 0], self.nvecs[:, 1] * n_set[:, 0]]).T
         self.wpts = self.cline + deviation
 
-        self.vs = Max_velocity(self.wpts, self.conf, False)
-        # self.vs = Max_velocity(self.wpts, self.conf, True)
+        # self.vs = Max_velocity(self.wpts, self.conf, False)
+        self.vs = Max_velocity(self.wpts, self.conf, True)
 
     def save_map_opti(self):
         filename = 'maps/' + self.map_name + '_opti.csv'
@@ -365,8 +386,9 @@ def MinCurvatureTrajectory(pts, nvecs, ws):
     """
     This function uses optimisation to minimise the curvature of the path
     """
-    w_min = - ws[:, 0] * 0.9
-    w_max = ws[:, 1] * 0.9
+    width_factor = 0.6
+    w_min = - ws[:, 0] * width_factor
+    w_max = ws[:, 1] * width_factor
     th_ns = [lib.get_bearing([0, 0], nvecs[i, 0:2]) for i in range(len(nvecs))]
 
     N = len(pts)
@@ -505,8 +527,8 @@ def Max_velocity(pts, conf, show=False):
                 ) \
     }
 
-    S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':0}})
-    # S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':5}})
+    # S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':0}})
+    S = ca.nlpsol('S', 'ipopt', nlp, {'ipopt':{'print_level':5}})
 
     # make init sol
     v0 = np.ones(N) * max_v/2
@@ -523,12 +545,15 @@ def Max_velocity(pts, conf, show=False):
 
     # make lbx, ubx
     # lbx = [-max_v] * N + [-max_v] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
-    lbx = [-max_v] * N + [0] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
-    ubx = [max_v] * N + [max_v] * N + [10] * N1 + [f_long_max] * N1 + [f_max] * N1
+    # lbx = [-max_v] * N + [0] * N + [0] * N1 + [-f_long_max] * N1 + [-f_max] * N1
+    # ubx = [max_v] * N + [max_v] * N + [10] * N1 + [f_long_max] * N1 + [f_max] * N1
+    lbx = [-max_v] * N + [0] * N + [0] * N1 + [-ca.inf] * N1 + [-f_max] * N1
+    ubx = [max_v] * N + [max_v] * N + [10] * N1 + [ca.inf] * N1 + [f_max] * N1
 
     #make lbg, ubg
     lbg = [0] * N1 + [0] * N + [0] * 2 * N1 + [0] * N1 #+ [0] * 2 
-    ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [f_max] * N1 #+ [0] * 2 
+    # ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [f_max] * N1 #+ [0] * 2 
+    ubg = [0] * N1 + [0] * N + [0] * 2 * N1 + [ca.inf] * N1 #+ [0] * 2 
 
     r = S(x0=x0, lbg=lbg, ubg=ubg, lbx=lbx, ubx=ubx)
 
@@ -554,14 +579,18 @@ def Max_velocity(pts, conf, show=False):
 
     if show:
         plt.figure(1)
+        plt.clf()
         plt.title("Velocity vs dt")
         plt.plot(t, vs)
-        plt.plot(t, dx)
-        plt.plot(t, dy)
-        plt.legend(['v', 'dx', 'dy'])
+        plt.plot(t, th_i)
+        plt.legend(['vs', 'ths'])
+        # plt.plot(t, dx)
+        # plt.plot(t, dy)
+        # plt.legend(['v', 'dx', 'dy'])
         plt.plot(t, np.ones_like(t) * max_v, '--')
 
-        plt.figure(2)
+        plt.figure(3)
+        plt.clf()
         plt.title("F_long, F_lat vs t")
         plt.plot(t[:-1], f_long)
         plt.plot(t[:-1], f_lat)
@@ -570,18 +599,12 @@ def Max_velocity(pts, conf, show=False):
         plt.plot(t, np.ones_like(t) * -f_max, '--')
         plt.plot(t, np.ones_like(t) * f_long_max, '--')
         plt.plot(t, np.ones_like(t) * -f_long_max, '--')
+        plt.ylim([-25, 25])
 
         plt.legend(['Flong', "f_lat", "f_t"])
 
-        plt.figure(3)
-        plt.title("Theta vs t")
-        plt.plot(t, th_i)
-        # plt.plot(t, np.abs(th_i))
-
-        plt.figure(5)
-        plt.title(f"t vs dt")
-        plt.plot(t[1:], dt)
-        plt.plot(t[1:], dt, '+')
+        # plt.show()
+        plt.pause(0.001)
     
     # plt.figure(9)
     # plt.clf()
@@ -612,8 +635,9 @@ def convert_pts_s_th(pts):
 
 
 if __name__ == "__main__":
-    fname = "config_example_map"
+    # fname = "config_example_map"
     fname = "config_test"
+    # fname = "vegas"
     conf = lib.load_config_namespace(fname)
 
     pre_map = PreMap(conf)
