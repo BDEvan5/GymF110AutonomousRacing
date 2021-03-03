@@ -111,8 +111,8 @@ def run_multi_test(conf, vehicle, n_tests=10):
         start = time.time()
         obses = []
         while not done and laptime < conf.max_time:
-            action = vehicle.act_loop(obs)
-            # action = vehicle.act(obs)
+            # action = vehicle.act_loop(obs)
+            action = vehicle.act(obs)
             obs, r, done, info = env.step(action)
             
             # s_hist.add_step(obs, action)
@@ -122,8 +122,6 @@ def run_multi_test(conf, vehicle, n_tests=10):
             # env.render(mode='human')
             env.render(mode='human_fast')
         print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
-        print(f"LapTime: {obs['lap_times'][0]}")
-        # vehicle.plot_wpt_ys()
         # s_hist.show_history(wait=True)
 
 
@@ -133,8 +131,9 @@ def run_tuner_car():
     config_file = "config_test"
     conf = lib.load_config_namespace(config_file)
 
-    vehicle = TunerCar(conf)
+    # vehicle = TunerCar(conf)
     # vehicle = FollowTheGap(conf)
+    vehicle = ModVehicleTrain(conf, "test")
 
     # test_vehicle(conf, vehicle)
     run_multi_test(conf, vehicle)

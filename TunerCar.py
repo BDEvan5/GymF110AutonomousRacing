@@ -92,13 +92,12 @@ class TunerCar:
         elif nearest_dist < 20:
             return np.append(self.wpts[i], self.vs[i])
 
-    def act(self, obs):
+    def act_pp(self, obs):
         ego_idx = obs['ego_idx']
         pose_th = obs['poses_theta'][ego_idx] 
         p_x = obs['poses_x'][ego_idx]
         p_y = obs['poses_y'][ego_idx]
         v_current = obs['linear_vels_x'][ego_idx]
-        ang_vel = obs['ang_vels_z']
 
         pos = np.array([p_x, p_y], dtype=np.float)
 
@@ -112,7 +111,7 @@ class TunerCar:
             return 4.0, 0.0
 
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
-        speed = self.vgain * speed * 0.8
+        speed = self.vgain * speed #* 0.8
 
         d_max = 0.4
         steering_angle = np.clip(steering_angle, -d_max, d_max)
@@ -120,17 +119,12 @@ class TunerCar:
 
         return np.array([[steering_angle, speed]])
 
-    def act_loop(self, obs):
+    def act(self, obs):
         if self.action is None or self.loop_counter == self.plan_f:
             self.loop_counter = 0
-            self.action = self.act(obs)
+            self.action = self.act_pp(obs)
         self.loop_counter += 1
         return self.action
-
-
-    def control_action(self, obs):
-        return self.action
-        
 
     def get_actuation(self, pose_theta, lookahead_point, position):
         waypoint_y = np.dot(np.array([np.sin(-pose_theta), np.cos(-pose_theta)]), lookahead_point[0:2]-position)

@@ -20,7 +20,9 @@ sy: 0.0
 # stheta: 0.5
 # stheta: -3.1
 # stheta:  3.1
-stheta: 2.5
+
+# stheta: 0  # porto
+stheta: 2.5 # torino
 
 mu: 0.523
 m: 3.47
@@ -46,6 +48,7 @@ h: 200
 r_dis_scale: 1
 
 plan_frequency: 10
+v_min_plan: 1
 max_time: 30
 # max_time: 14
 

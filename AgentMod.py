@@ -31,23 +31,22 @@ class BaseMod:
         self.wpts = None
         self.vs = None
         self.steps = 0
+        self.ss = None
 
         self.mod_history = []
         self.d_ref_history = []
         self.reward_history = []
         self.critic_history = []
 
+        self.loop_counter = 0
+        self.plan_f = conf.plan_frequency
+        self.action = None
 
         try:
             # raise FileNotFoundError
             self._load_csv_track()
         except FileNotFoundError:
-            print(f"Problem Loading map - generating")
-            pre_map = PreMap(self.conf)
-            pre_map.run_conversion()
-            self._load_csv_track()
-        # self.plot_track_pts()
-        
+            print(f"Problem Loading map - generate new one")
 
     def _load_csv_track(self):
         track = []
@@ -66,6 +65,8 @@ class BaseMod:
         self.wpts = track[:, 1:3]
         self.vs = track[:, 5]
 
+        self.expand_wpts()
+
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
 
@@ -79,6 +80,31 @@ class BaseMod:
         plt.gca().set_aspect('equal', 'datalim')
         # plt.show()
 
+    def expand_wpts(self):
+        n = 5 # number of pts per orig pt
+        dz = 1 / n
+        o_line = self.wpts
+        o_ss = self.ss
+        o_vs = self.vs
+        new_line = []
+        new_ss = []
+        new_vs = []
+        for i in range(self.N-1):
+            dd = lib.sub_locations(o_line[i+1], o_line[i])
+            for j in range(n):
+                pt = lib.add_locations(o_line[i], dd, dz*j)
+                new_line.append(pt)
+
+                ds = o_ss[i+1] - o_ss[i]
+                new_ss.append(o_ss[i] + dz*j*ds)
+
+                dv = o_vs[i+1] - o_vs[i]
+                new_vs.append(o_vs[i] + dv * j * dz)
+
+        self.wpts = np.array(new_line)
+        self.ss = np.array(new_ss)
+        self.vs = np.array(new_vs)
+        self.N = len(new_line)
 
     def _get_current_waypoint(self, position):
         # nearest_pt, nearest_dist, t, i = nearest_point_on_trajectory_py2(position, self.wpts)
@@ -103,6 +129,10 @@ class BaseMod:
         pose_th = obs['poses_theta'][ego_idx] 
         p_x = obs['poses_x'][ego_idx]
         p_y = obs['poses_y'][ego_idx]
+        v_current = obs['linear_vels_x'][ego_idx]
+
+        if v_current < self.conf.v_min_plan:
+            return 0, 7
 
         pos = np.array([p_x, p_y], dtype=np.float)
 
@@ -112,7 +142,7 @@ class BaseMod:
             return 0.0, 4.0
 
         speed, steering_angle = self.get_actuation(pose_th, lookahead_point, pos)
-        speed = self.vgain * speed
+        speed = self.vgain * speed 
 
         return steering_angle, speed
 
@@ -170,7 +200,6 @@ class BaseMod:
 
         steer_ref, speed_ref = self.act_pp(obs)
 
-
         cur_v = [v_current/self.max_v]
         cur_d = [d_current/self.max_d]
         vr_scale = [(speed_ref)/self.max_v]
@@ -179,7 +208,6 @@ class BaseMod:
         scan = np.array(obs['scans'][ego_idx])
         scan_scale = 10
         scan = np.clip(scan/10, 0, 1)
-
 
         nn_obs = np.concatenate([cur_v, cur_d, vr_scale, dr_scale, scan])
 
@@ -191,6 +219,13 @@ class BaseMod:
         d_new = d_ref + d_phi
 
         return d_new
+
+    def act(self, obs):
+        if self.action is None or self.loop_counter == self.plan_f:
+            self.loop_counter = 0
+            self.action = self.act_nn(obs)
+        self.loop_counter += 1
+        return self.action
 
 
 # @njit(fastmath=False, cache=True)
@@ -280,7 +315,7 @@ def first_point_on_trajectory_intersecting_circle(point, radius, trajectory, t=0
 
 
 class ModVehicleTrain(BaseMod):
-    def __init__(self, conf, name, load):
+    def __init__(self, conf, name, load=False):
         BaseMod.__init__(self, conf, name)
 
         state_space = 4 + conf.n_beams
@@ -291,7 +326,7 @@ class ModVehicleTrain(BaseMod):
         self.m1 = None
         self.m2 = None
 
-    def act(self, obs):
+    def act_nn(self, obs):
         nn_obs, steer_ref, speed_ref = self.transform_obs(obs)
         nn_action = self.agent.act(nn_obs)
         self.cur_nn_act = nn_action
@@ -336,7 +371,7 @@ class ModVehicleTest(BaseMod):
         self.current_v_ref = None
         self.current_phi_ref = None
 
-    def act(self, obs):
+    def act_nn(self, obs):
         v_ref, d_ref = self.act_pp(obs)
 
         nn_obs = self.transform_obs(obs)
