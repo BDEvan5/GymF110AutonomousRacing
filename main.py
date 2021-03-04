@@ -22,13 +22,13 @@ def TrainVehicle(conf, vehicle, steps=20000):
     env = gym.make('f110_gym:f110-v0', map=conf.map_name, map_ext=conf.map_ext, num_agents=1)
     map_reset_pt = np.array([[conf.sx, conf.sy, conf.stheta]])
     state, step_reward, done, info = env.reset(map_reset_pt)
+    env.add_obstacles(10, [0.5, 0.5])
     env.render()
 
-    t_his = TrainHistory(vehicle.name)
+    # t_his = TrainHistory(vehicle.name)
     print_n = 500
 
     done = False
-    done_counter = 0
     start = time.time()
 
     for n in range(steps):
@@ -46,16 +46,17 @@ def TrainVehicle(conf, vehicle, steps=20000):
         env.render('human_fast')
 
         if n % print_n == 0 and n > 0:
-            t_his.print_update()
+            # t_his.print_update()
             vehicle.agent.save(directory=path)
         
         if done or s_prime['collisions'][0] == 1:
+            find_conclusion(s_prime, start)
             vehicle.done_entry(s_prime)
             # t_his.lap_done(True)
             # vehicle.show_vehicle_history()
             # history.show_history()
             # history.reset_history()
-            t_his.lap_done(True)
+            # t_his.lap_done(True)
 
             laptime = s_prime['lap_times'][0]
             collision = s_prime['collisions'][0]
@@ -64,15 +65,25 @@ def TrainVehicle(conf, vehicle, steps=20000):
 
             vehicle.reset_lap()
             state, step_reward, done, info = env.reset(map_reset_pt)
+            env.add_obstacles(10, [0.5, 0.5])
             env.render()
 
 
     vehicle.agent.save(directory=path)
-    t_his.save_csv_data()
+    # t_his.save_csv_data()
 
     print(f"Finished Training: {vehicle.name}")
 
-    return t_his.rewards
+    # return t_his.rewards
+
+def find_conclusion(s_p, start):
+    laptime = s_p['lap_times'][0]
+    if s_p['collisions'][0] == 1:
+        print(f'Collision --> Sim time: {laptime:.2f} Real time: {(time.time()-start):.2f}')
+        return 1
+    if s_p['lap_counts'][0] == 1:
+        print(f'Complete --> Sim time: {laptime:.2f} Real time: {(time.time()-start):.2f}')
+        return 0
 
 
 def test_vehicle(conf, vehicle):
@@ -90,8 +101,8 @@ def test_vehicle(conf, vehicle):
         obs, step_reward, done, info = env.step(action)
         laptime += step_reward
         env.render(mode='human_fast')
-    print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
-
+    # print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
+    find_conclusion(obs, start)
 
 def run_multi_test(conf, vehicle, n_tests=10):
     env = gym.make('f110_gym:f110-v0', map=conf.map_name, map_ext=conf.map_ext, num_agents=1)
@@ -119,8 +130,10 @@ def run_multi_test(conf, vehicle, n_tests=10):
             # obses.append(obs)
             # env.render(mode='human')
             env.render(mode='human_fast')
-        print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
-        time.sleep(4)
+        # print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
+        find_conclusion(obs, start)
+
+        # time.sleep(4)
         # s_hist.show_history(wait=True)
 
 
@@ -148,12 +161,20 @@ def train_mod_time():
 
     TrainVehicle(conf, vehicle, 40000)
 
+def test_mod():
+    agent_name = "ModTime_test"
+    conf = lib.load_config_namespace(config_test)
+    vehicle = ModVehicleTest(conf, agent_name)
+
+
+    run_multi_test(conf, vehicle, 10)
 
 
 
 if __name__ == "__main__":
     # run_tuner_car()
 
-    train_mod_time()
+    # train_mod_time()
+    test_mod()
 
 

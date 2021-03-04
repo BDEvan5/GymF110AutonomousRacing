@@ -1,4 +1,5 @@
-import numpy as np 
+import numpy as np
+from torch.nn.functional import rrelu 
 
 import LibFunctions as lib
 
@@ -168,10 +169,11 @@ class TimeReward:
 
 # Track base
 class TrackPtsBase:
-    def __init__(self, config) -> None:
+    def __init__(self, conf) -> None:
         self.wpts = None
         self.ss = None
-        self.map_name = config['map_name']
+        self.map_name = conf.map_name
+        self.total_s = None
 
     def load_center_pts(self):
         track_data = []
@@ -195,6 +197,8 @@ class TrackPtsBase:
         ss = np.cumsum(ss)
         self.ss = np.insert(ss, 0, 0)
 
+        self.total_s = self.ss[-1]
+
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
 
@@ -216,6 +220,8 @@ class TrackPtsBase:
 
         self.ss = track[:, 0]
         self.wpts = track[:, 1:3]
+
+        self.total_s = self.ss[-1]
 
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
@@ -240,15 +246,26 @@ class TrackPtsBase:
 
         return s 
 
-    def get_distance_r(self, pt1, pt2, beta=0.02):
+    def get_distance_r(self, pt1, pt2, beta=0.5):
         s = self.find_s(pt1)
         ss = self.find_s(pt2)
         ds = ss - s
-        r = ds * beta
-        shaped_r = np.clip(r, -0.5, 0.5)
 
-        return shaped_r
+        scaled_ds = ds / self.total_s 
 
+        r = scaled_ds * beta
+
+        return r
+
+
+def collision_complete_reward(s_p):
+    if s_p['collisions'][0] == 1:
+        print(f"Collision in reward: ret -1")
+        return -1
+    if s_p['lap_counts'][0] == 1:
+        print(f"Complete in reward: ret 1")
+        return 1
+    return 0
 
 # 1) no racing Rewar
 class EmptyReward:
@@ -256,11 +273,7 @@ class EmptyReward:
         pass 
     
     def __call__(self, s, a, s_p, dev) -> float:
-        if s_p['collisions'][0] == 1:
-            return -1
-        if s_p['lap_counts'][0] == 1:
-            return 1
-        return 0
+        return collision_complete_reward(s_p)
 
 # 2) Original reward
 class TrackOriginalReward:
@@ -272,13 +285,11 @@ class TrackOriginalReward:
     def init_reward(self, wpts, vs):
         pass
 
-    def __call__(self, s, a, s_p, r, dev):
-        if r == -1:
-            return -1
-        else:
-            ret_r = self.b1 - self.b2 * abs(dev)
+    def __call__(self, s, a, s_p, dev):
+        r = collision_complete_reward(s_p)
+        r_race = self.b1 - self.b2 * abs(dev)
 
-            return ret_r + r
+        return r + r_race
 
 # 3) distance centerline
 class CenterDistanceReward(TrackPtsBase):
@@ -288,13 +299,15 @@ class CenterDistanceReward(TrackPtsBase):
         self.load_center_pts()
         self.b_distance = b_distance
 
-    def __call__(self, s, a, s_p, r, dev):
-        if r == -1:
-            return -1
-        else:
-            shaped_r = self.get_distance_r(s[0:2], s_p[0:2], self.b_distance)
+    def __call__(self, s, a, s_p, dev):
+        r = collision_complete_reward(s_p)
 
-            return shaped_r + r
+        pos_t = np.array([s['poses_x'][0], s['poses_y'][0]])
+        pos_tt = np.array([s_p['poses_x'][0], s_p['poses_y'][0]])
+
+        r_race = self.get_distance_r(pos_t, pos_tt, self.b_distance)
+
+        return r + r_race
 
 # 4) CTH center
 class CenterCTHReward(TrackPtsBase):
@@ -307,22 +320,21 @@ class CenterCTHReward(TrackPtsBase):
         self.mh = mh 
         self.md = md 
 
-    def __call__(self, s, a, s_p, r, dev):
-        if r == -1:
-            return r
-        else:
-            pt_i, pt_ii, d_i, d_ii = find_closest_pt(s_p[0:2], self.wpts)
-            d = lib.get_distance(pt_i, pt_ii)
-            d_c = get_tiangle_h(d_i, d_ii, d) / self.dis_scale
+    def __call__(self, s, a, s_p, dev):
+        r = collision_complete_reward(s_p)
+        
+        pt_i, pt_ii, d_i, d_ii = find_closest_pt(s_p[0:2], self.wpts)
+        d = lib.get_distance(pt_i, pt_ii)
+        d_c = get_tiangle_h(d_i, d_ii, d) / self.dis_scale
 
-            th_ref = lib.get_bearing(pt_i, pt_ii)
-            th = s_p[2]
-            d_th = abs(lib.sub_angles_complex(th_ref, th))
-            v_scale = s_p[3] / self.max_v
+        th_ref = lib.get_bearing(pt_i, pt_ii)
+        th = s_p[2]
+        d_th = abs(lib.sub_angles_complex(th_ref, th))
+        v_scale = s_p[3] / self.max_v
 
-            new_r =  self.mh * np.cos(d_th) * v_scale - self.md * d_c
+        r_race =  self.mh * np.cos(d_th) * v_scale - self.md * d_c
 
-            return new_r + r
+        return r + r_race
 
 # 5) Time
 class TrackTimeReward():
@@ -330,10 +342,10 @@ class TrackTimeReward():
         self.mt = mt 
         
     def __call__(self, s, a, s_p, r, dev) -> float:
-        if r == -1:
-            return -1
-        else:
-            return -self.mt + r 
+        r = collision_complete_reward(s_p)
+        r_race = - self.mt
+
+        return r + r_race
 
 # 6) Distance ref
 class RefDistanceReward(TrackPtsBase):

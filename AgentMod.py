@@ -30,7 +30,6 @@ class BaseMod:
 
         self.wpts = None
         self.vs = None
-        self.steps = 0
         self.ss = None
 
         self.mod_history = []
@@ -147,7 +146,6 @@ class BaseMod:
         return steering_angle, speed
 
     def reset_lap(self):
-        self.steps = 0
         self.mod_history = []
 
     def get_actuation(self, pose_theta, lookahead_point, position):
@@ -335,7 +333,6 @@ class ModVehicleTrain(BaseMod):
         nn_obs, steer_ref, speed_ref = self.transform_obs(obs)
         self.add_memory_entry(obs, nn_obs)
 
-
         self.state = obs
         nn_action = self.agent.act(nn_obs)
         self.nn_act = nn_action
@@ -344,12 +341,8 @@ class ModVehicleTrain(BaseMod):
         self.mod_history.append(self.nn_act[0])
         self.critic_history.append(self.agent.get_critic_value(nn_obs, nn_action))
         self.nn_state = nn_obs
-        # self.state_action = [nn_obs, self.cur_nn_act]
 
-        # steering_angle = self.modify_references(self.cur_nn_act, steer_ref)
-        steering_angle = steer_ref
-
-        self.steps += 1
+        steering_angle = self.modify_references(self.nn_act, steer_ref)
 
         return np.array([[steering_angle, speed_ref]])
 
@@ -390,21 +383,17 @@ class ModVehicleTest(BaseMod):
         self.current_phi_ref = None
 
     def act_nn(self, obs):
-        v_ref, d_ref = self.act_pp(obs)
+        nn_obs, steer_ref, speed_ref = self.transform_obs(obs)
 
-        nn_obs = self.transform_obs(obs)
+        self.state = obs
         nn_action = self.agent.act(nn_obs, noise=0)
-        # self.cur_nn_act = nn_action
+        self.nn_act = nn_action
 
-        self.d_ref_history.append(d_ref)
-        self.mod_history.append(nn_action[0])
+        self.d_ref_history.append(steer_ref)
+        self.mod_history.append(self.nn_act[0])
         self.critic_history.append(self.agent.get_critic_value(nn_obs, nn_action))
-        self.state_action = [nn_obs, nn_action]
+        self.nn_state = nn_obs
 
-        v_ref, d_ref = self.modify_references(nn_action, v_ref, d_ref, obs)
+        steering_angle = self.modify_references(self.nn_act, steer_ref)
 
-        self.steps += 1
-
-        return [v_ref, d_ref]
-
-
+        return np.array([[steering_angle, speed_ref]])
