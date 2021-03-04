@@ -121,6 +121,8 @@ class TD3(object):
         self.critic_target = None
         self.critic_optimizer = None
 
+        self.replay_buffer = None
+
     def create_agent(self, h_size):
         state_dim = self.state_dim
         action_dim = self.act_dim
@@ -134,6 +136,8 @@ class TD3(object):
         self.critic_target = Critic(state_dim, action_dim, h_size)
         self.critic_target.load_state_dict(self.critic.state_dict())
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=1e-3)
+
+        self.replay_buffer = ReplayBufferTD3()
 
     def select_action(self, state, noise=0.1):
         return self.act(state, noise=noise)
@@ -156,10 +160,12 @@ class TD3(object):
 
         return ret
 
-    def train(self, replay_buffer, iterations):
+    def train(self, iterations=2):
+        if self.replay_buffer.size() < BATCH_SIZE:
+            return 0
         for it in range(iterations):
             # Sample replay buffer 
-            x, u, y, r, d = replay_buffer.sample(BATCH_SIZE)
+            x, u, y, r, d = self.replay_buffer.sample(BATCH_SIZE)
             state = torch.FloatTensor(x)
             action = torch.FloatTensor(u)
             next_state = torch.FloatTensor(y)

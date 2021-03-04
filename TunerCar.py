@@ -120,10 +120,11 @@ class TunerCar:
         return np.array([[steering_angle, speed]])
 
     def act(self, obs):
-        if self.action is None or self.loop_counter == self.plan_f:
-            self.loop_counter = 0
-            self.action = self.act_pp(obs)
-        self.loop_counter += 1
+        # if self.action is None or self.loop_counter == self.plan_f:
+        #     self.loop_counter = 0
+        #     self.action = self.act_pp(obs)
+        # self.loop_counter += 1
+        self.action = self.act_pp(obs)
         return self.action
 
     def get_actuation(self, pose_theta, lookahead_point, position):

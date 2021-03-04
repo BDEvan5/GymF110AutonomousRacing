@@ -70,7 +70,7 @@ class BaseMod:
         self.diffs = self.wpts[1:,:] - self.wpts[:-1,:]
         self.l2s   = self.diffs[:,0]**2 + self.diffs[:,1]**2 
 
-        self.plot_track_pts()
+        # self.plot_track_pts()
 
     def plot_track_pts(self):
         # plt.imshow(self.)
@@ -206,8 +206,8 @@ class BaseMod:
         dr_scale = [steer_ref/self.max_d]
 
         scan = np.array(obs['scans'][ego_idx])
-        scan_scale = 10
-        scan = np.clip(scan/10, 0, 1)
+        scan_scale = 10 # TODO: move to parameter file
+        scan = np.clip(scan/scan_scale, 0, 1)
 
         nn_obs = np.concatenate([cur_v, cur_d, vr_scale, dr_scale, scan])
 
@@ -323,18 +323,28 @@ class ModVehicleTrain(BaseMod):
         h_size = conf.h
         self.agent.try_load(load, h_size)
 
-        self.m1 = None
-        self.m2 = None
+        self.reward_fcn = None
+        self.state = None
+        self.nn_state = None
+        self.nn_act = None
+
+    def set_reward_fcn(self, r_fcn):
+        self.reward_fcn = r_fcn
 
     def act_nn(self, obs):
         nn_obs, steer_ref, speed_ref = self.transform_obs(obs)
+        self.add_memory_entry(obs, nn_obs)
+
+
+        self.state = obs
         nn_action = self.agent.act(nn_obs)
-        self.cur_nn_act = nn_action
+        self.nn_act = nn_action
 
         self.d_ref_history.append(steer_ref)
-        self.mod_history.append(self.cur_nn_act[0])
+        self.mod_history.append(self.nn_act[0])
         self.critic_history.append(self.agent.get_critic_value(nn_obs, nn_action))
-        self.state_action = [nn_obs, self.cur_nn_act]
+        self.nn_state = nn_obs
+        # self.state_action = [nn_obs, self.cur_nn_act]
 
         # steering_angle = self.modify_references(self.cur_nn_act, steer_ref)
         steering_angle = steer_ref
@@ -343,16 +353,24 @@ class ModVehicleTrain(BaseMod):
 
         return np.array([[steering_angle, speed_ref]])
 
-    def add_memory_entry(self, new_reward, done, s_prime, buffer):
-        self.prev_nn_act = self.state_action[1][0]
+    def add_memory_entry(self, s_prime, nn_s_prime):
+        if self.state is not None:
+            reward = self.reward_fcn(self.state, self.action, s_prime, self.nn_act)
 
+            mem_entry = (self.nn_state, self.nn_act, nn_s_prime, reward, False)
+
+            self.agent.replay_buffer.add(mem_entry)
+
+    def done_entry(self, s_prime):
+        """
+        To be called when ep is done.
+        """
         nn_s_prime, d, v = self.transform_obs(s_prime)
+        reward = self.reward_fcn(self.state, self.action, s_prime, self.nn_act)
 
-        mem_entry = (self.state_action[0], self.state_action[1], nn_s_prime, new_reward, done)
+        mem_entry = (self.nn_state, self.nn_act, nn_s_prime, reward, True)
 
-        buffer.add(mem_entry)
-
-
+        self.agent.replay_buffer.add(mem_entry)
 
 class ModVehicleTest(BaseMod):
     def __init__(self, config, name):
@@ -376,14 +394,14 @@ class ModVehicleTest(BaseMod):
 
         nn_obs = self.transform_obs(obs)
         nn_action = self.agent.act(nn_obs, noise=0)
-        self.cur_nn_act = nn_action
+        # self.cur_nn_act = nn_action
 
         self.d_ref_history.append(d_ref)
-        self.mod_history.append(self.cur_nn_act[0])
+        self.mod_history.append(nn_action[0])
         self.critic_history.append(self.agent.get_critic_value(nn_obs, nn_action))
-        self.state_action = [nn_obs, self.cur_nn_act]
+        self.state_action = [nn_obs, nn_action]
 
-        v_ref, d_ref = self.modify_references(self.cur_nn_act, v_ref, d_ref, obs)
+        v_ref, d_ref = self.modify_references(nn_action, v_ref, d_ref, obs)
 
         self.steps += 1
 
