@@ -1,6 +1,5 @@
 import numpy as np
-from torch.nn.functional import rrelu 
-
+import csv
 import LibFunctions as lib
 
 
@@ -260,10 +259,10 @@ class TrackPtsBase:
 
 def collision_complete_reward(s_p):
     if s_p['collisions'][0] == 1:
-        print(f"Collision in reward: ret -1")
+        # print(f"Collision in reward: ret -1")
         return -1
     if s_p['lap_counts'][0] == 1:
-        print(f"Complete in reward: ret 1")
+        # print(f"Complete in reward: ret 1")
         return 1
     return 0
 
@@ -275,26 +274,11 @@ class EmptyReward:
     def __call__(self, s, a, s_p, dev) -> float:
         return collision_complete_reward(s_p)
 
-# 2) Original reward
-class TrackOriginalReward:
-    def __init__(self, config, b1, b2) -> None:
-        pass
-        self.b1 = b1 
-        self.b2 = b2
-
-    def init_reward(self, wpts, vs):
-        pass
-
-    def __call__(self, s, a, s_p, dev):
-        r = collision_complete_reward(s_p)
-        r_race = self.b1 - self.b2 * abs(dev)
-
-        return r + r_race
 
 # 3) distance centerline
 class CenterDistanceReward(TrackPtsBase):
-    def __init__(self, config, b_distance) -> None:
-        TrackPtsBase.__init__(self, config)
+    def __init__(self, conf, b_distance) -> None:
+        TrackPtsBase.__init__(self, conf)
 
         self.load_center_pts()
         self.b_distance = b_distance
@@ -311,10 +295,10 @@ class CenterDistanceReward(TrackPtsBase):
 
 # 4) CTH center
 class CenterCTHReward(TrackPtsBase):
-    def __init__(self, config, mh, md) -> None:
-        TrackPtsBase.__init__(self, config)
-        self.max_v = config['lims']['max_v']
-        self.dis_scale = config['lims']["dis_scale"]
+    def __init__(self, conf, mh, md) -> None:
+        TrackPtsBase.__init__(self, conf)
+        self.max_v = conf.max_v
+        self.dis_scale = conf.cross_track_scale
 
         self.load_center_pts()
         self.mh = mh 
@@ -322,15 +306,17 @@ class CenterCTHReward(TrackPtsBase):
 
     def __call__(self, s, a, s_p, dev):
         r = collision_complete_reward(s_p)
-        
-        pt_i, pt_ii, d_i, d_ii = find_closest_pt(s_p[0:2], self.wpts)
+
+        pos_tt = np.array([s_p['poses_x'][0], s_p['poses_y'][0]])
+
+        pt_i, pt_ii, d_i, d_ii = find_closest_pt(pos_tt, self.wpts)
         d = lib.get_distance(pt_i, pt_ii)
         d_c = get_tiangle_h(d_i, d_ii, d) / self.dis_scale
 
         th_ref = lib.get_bearing(pt_i, pt_ii)
-        th = s_p[2]
+        th = s_p['poses_theta'][0]
         d_th = abs(lib.sub_angles_complex(th_ref, th))
-        v_scale = s_p[3] / self.max_v
+        v_scale = s_p['linear_vels_x'][0] / self.max_v
 
         r_race =  self.mh * np.cos(d_th) * v_scale - self.md * d_c
 
@@ -355,61 +341,57 @@ class RefDistanceReward(TrackPtsBase):
         self.load_reference_pts()
         self.b_distance = b_distance
 
-    def __call__(self, s, a, s_p, r, dev):
-        if r == -1:
-            return -1
-        else:
-            shaped_r = self.get_distance_r(s[0:2], s_p[0:2], self.b_distance)
+    def __call__(self, s, a, s_p, dev):
+        r = collision_complete_reward(s_p)
 
-            return shaped_r + r
+        pos_t = np.array([s['poses_x'][0], s['poses_y'][0]])
+        pos_tt = np.array([s_p['poses_x'][0], s_p['poses_y'][0]])
+
+        r_race = self.get_distance_r(pos_t, pos_tt, self.b_distance)
+
+        return r + r_race
 
 # 7) CTH ref
 class RefCTHReward(TrackPtsBase):
-    def __init__(self, config, mh, md) -> None:
-        TrackPtsBase.__init__(self, config)
-        self.max_v = config['lims']['max_v']
-        self.dis_scale = config['lims']["dis_scale"]
+    def __init__(self, conf, mh, md) -> None:
+        TrackPtsBase.__init__(self, conf)
+        self.max_v = conf.max_v
+        self.dis_scale = conf.cross_track_scale
 
         self.load_reference_pts()
         self.mh = mh 
         self.md = md 
 
-    def __call__(self, s, a, s_p, r, dev):
-        if r == -1:
-            return r
-        else:
-            pt_i, pt_ii, d_i, d_ii = find_closest_pt(s_p[0:2], self.wpts)
-            d = lib.get_distance(pt_i, pt_ii)
-            d_c = get_tiangle_h(d_i, d_ii, d) / self.dis_scale
+    def __call__(self, s, a, s_p, dev):
+        r = collision_complete_reward(s_p)
 
-            th_ref = lib.get_bearing(pt_i, pt_ii)
-            th = s_p[2]
-            d_th = abs(lib.sub_angles_complex(th_ref, th))
-            v_scale = s_p[3] / self.max_v
+        pos_tt = np.array([s_p['poses_x'][0], s_p['poses_y'][0]])
 
-            new_r =  self.mh * np.cos(d_th) * v_scale - self.md * d_c
+        pt_i, pt_ii, d_i, d_ii = find_closest_pt(pos_tt, self.wpts)
+        d = lib.get_distance(pt_i, pt_ii)
+        d_c = get_tiangle_h(d_i, d_ii, d) / self.dis_scale
 
-            return new_r + r
+        th_ref = lib.get_bearing(pt_i, pt_ii)
+        th = s_p['poses_theta'][0]
+        d_th = abs(lib.sub_angles_complex(th_ref, th))
+        v_scale = s_p['linear_vels_x'][0] / self.max_v
 
-# 8) steering and velocity
-# for 9) too
+        r_race =  self.mh * np.cos(d_th) * v_scale - self.md * d_c
+
+        return r + r_race
+
+# 8) steering 
 class TrackSteerReward:
-    def __init__(self, config, mv, ms) -> None:
-        self.max_steer = config['lims']['max_steer']
-        self.max_v = config['lims']['max_v']
-        self.mv = mv 
-        self.ms = ms 
+    def __init__(self, conf, b_steering) -> None:
+        self.max_steer = conf.max_steer
+        self.max_v = conf.max_v
+        self.b_steering = b_steering
            
-    def __call__(self, s, a, s_p, r, dev) -> float:
-        if r == -1:
-            return r
-        else:
-            vel = a[0] / self.max_v 
-            steer = abs(a[1]) / self.max_steer
+    def __call__(self, s, a, s_p, dev) -> float:
+        r = collision_complete_reward(s_p)
 
-            new_r = self.mv * vel - self.ms * steer 
+        steer = abs(a[0, 0]) / self.max_steer
+        r_race = - self.b_steering * steer**2
 
-            return new_r  + r
-
-
+        return r + r_race
 

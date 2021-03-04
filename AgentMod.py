@@ -194,7 +194,10 @@ class BaseMod:
     def transform_obs(self, obs):
         ego_idx = obs['ego_idx']
         v_current = obs['linear_vels_x'][ego_idx]
-        d_current = obs['linear_vels_x'][ego_idx]
+
+        d_current = obs['steering_angles'][ego_idx]
+
+        # d_current = obs['linear_vels_x'][ego_idx]
 
         steer_ref, speed_ref = self.act_pp(obs)
 
@@ -204,7 +207,7 @@ class BaseMod:
         dr_scale = [steer_ref/self.max_d]
 
         scan = np.array(obs['scans'][ego_idx])
-        scan_scale = 10 # TODO: move to parameter file
+        scan_scale = 5 # TODO: move to parameter file
         scan = np.clip(scan/scan_scale, 0, 1)
 
         nn_obs = np.concatenate([cur_v, cur_d, vr_scale, dr_scale, scan])
@@ -310,6 +313,7 @@ def first_point_on_trajectory_intersecting_circle(point, radius, trajectory, t=0
     # print min_dist_segment, dists[min_dist_segment], projections[min_dist_segment]
 
 
+from HistoryStructs import TrainHistory
 
 
 class ModVehicleTrain(BaseMod):
@@ -325,6 +329,8 @@ class ModVehicleTrain(BaseMod):
         self.state = None
         self.nn_state = None
         self.nn_act = None
+
+        self.t_his = TrainHistory(name)
 
     def set_reward_fcn(self, r_fcn):
         self.reward_fcn = r_fcn
@@ -350,6 +356,7 @@ class ModVehicleTrain(BaseMod):
         if self.state is not None:
             reward = self.reward_fcn(self.state, self.action, s_prime, self.nn_act)
 
+            self.t_his.add_step_data(reward)
             mem_entry = (self.nn_state, self.nn_act, nn_s_prime, reward, False)
 
             self.agent.replay_buffer.add(mem_entry)
@@ -361,6 +368,10 @@ class ModVehicleTrain(BaseMod):
         nn_s_prime, d, v = self.transform_obs(s_prime)
         reward = self.reward_fcn(self.state, self.action, s_prime, self.nn_act)
 
+        self.t_his.add_step_data(reward)
+        self.t_his.lap_done(True)
+        self.t_his.print_update()
+        self.state = None
         mem_entry = (self.nn_state, self.nn_act, nn_s_prime, reward, True)
 
         self.agent.replay_buffer.add(mem_entry)

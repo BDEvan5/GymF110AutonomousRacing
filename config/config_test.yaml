@@ -52,4 +52,4 @@ v_min_plan: 1
 max_time: 30
 # max_time: 14
 
-
+cross_track_scale: 1  # scaled val for cth error

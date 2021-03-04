@@ -1,0 +1,45 @@
+
+Testing Complete 
+Map name:  
+-----------------------------------------------------
+-----------------------------------------------------
+Vehicle: ModEmpty_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: ModDistCenter_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: ModDistGlbl_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: ModCthCenter_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: ModCthGlbl_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: ModSteer_porto_try1
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: TunerCar Agent: Following PP references
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------
+Vehicle: Follow the Gap method
+Crashes: 1.0 --> Completes 0.0
+% Finished = 0.00
+Avg lap times: 0.0
+-----------------------------------------------------

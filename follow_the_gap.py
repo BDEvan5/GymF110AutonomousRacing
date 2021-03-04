@@ -4,6 +4,7 @@ import numpy as np
 
 class FollowTheGap:
     def __init__(self, conf):
+        self.name = "Follow the Gap method"
         self.conf = conf
         self.map = None
         self.cur_scan = None
