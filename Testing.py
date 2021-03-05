@@ -29,7 +29,7 @@ def TrainVehicle(conf, vehicle, steps=20000):
     map_reset_pt = np.array([[conf.sx, conf.sy, conf.stheta]])
     state, step_reward, done, info = env.reset(map_reset_pt)
     env.add_obstacles(10, [0.5, 0.5])
-    env.render()
+    # env.render()
 
     # t_his = TrainHistory(vehicle.name)
     print_n = 500
@@ -41,35 +41,27 @@ def TrainVehicle(conf, vehicle, steps=20000):
         a = vehicle.act(state)
         s_prime, r, done, info = env.step(a)
 
-        # t_his.add_step_data(vehicle)
-
         # history.steering.append(a[0, 0])
         # history.velocities.append(a[0, 1])
 
         state = s_prime
         vehicle.agent.train()
         
-        env.render('human_fast')
-
-        if n % print_n == 0 and n > 0:
-            # t_his.print_update()
-            vehicle.agent.save(directory=path)
+        # env.render('human_fast')
         
         if done or s_prime['collisions'][0] == 1:
             find_conclusion(s_prime, start)
             vehicle.done_entry(s_prime)
-            # t_his.lap_done(True)
             # vehicle.show_vehicle_history()
             # history.show_history()
             # history.reset_history()
-            # t_his.lap_done(True)
 
             start = time.time()
 
             vehicle.reset_lap()
             state, step_reward, done, info = env.reset(map_reset_pt)
             env.add_obstacles(10, [0.5, 0.5])
-            env.render()
+            # env.render()
 
 
     vehicle.agent.save(directory=path)

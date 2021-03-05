@@ -74,8 +74,8 @@ def FullTrainRT():
     conf = lib.load_config_namespace(config_test)
     env_name = "porto"
     train_name = "_try1"
-    # n_train = 1000000
-    n_train = 1000
+    n_train = 1000000
+    # n_train = 1000
 
     # 1) no racing reward
     agent_name = "ModEmpty_" + env_name + train_name
@@ -172,8 +172,8 @@ def FullTest():
 
     # test.run_eval(1, True, add_obs=False, save=True)
     # test.run_eval(10, True, add_obs=True, save=True)
-    # test.run_eval(1000, True, add_obs=True, save=False)
-    test.run_eval(1, True, add_obs=True, save=False)
+    test.run_eval(1000, True, add_obs=True)
+    # test.run_eval(1, True, add_obs=True, save=False)
 
     # test.run_eval(10, True)
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     # test_time_sweep()
     # test_steer_sweep()
 
-    # FullTrainRT()
+    FullTrainRT()
     FullTest()
 
     # PartialTrain()

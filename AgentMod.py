@@ -320,6 +320,7 @@ class ModVehicleTrain(BaseMod):
     def __init__(self, conf, name, load=False):
         BaseMod.__init__(self, conf, name)
 
+        self.path = 'Vehicles/' + self.name
         state_space = 4 + conf.n_beams
         self.agent = TD3(state_space, 1, 1, name)
         h_size = conf.h
@@ -369,8 +370,11 @@ class ModVehicleTrain(BaseMod):
         reward = self.reward_fcn(self.state, self.action, s_prime, self.nn_act)
 
         self.t_his.add_step_data(reward)
-        self.t_his.lap_done(True)
-        self.t_his.print_update()
+        self.t_his.lap_done(False)
+        # self.t_his.lap_done(True)
+        if len(self.t_his.ep_rewards) % 10 == 0:
+            self.t_his.print_update()
+            self.agent.save(self.path)
         self.state = None
         mem_entry = (self.nn_state, self.nn_act, nn_s_prime, reward, True)
 
